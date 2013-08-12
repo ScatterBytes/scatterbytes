@@ -1,0 +1,106 @@
+=====================
+ScatterBytes Protocol
+=====================
+
+This document describes the ScatterBytes protocol.
+
+
+Terms
+-----
+
+client node
+  a node that makes storage requests, but does not accept them
+
+storage node
+  a node that accepts storage requests
+
+control node
+  a node that cooridnates the client and storage nodes
+
+storage transaction
+  a transaction which begins when a client requests storage and ends when all
+  storage nodes (including replication nodes) and the client confirm
+  completion
+  
+
+
+Storing a File
+--------------
+
+For a client to store a file, it breaks it into chunks, then requests storage
+node locations from a control node.  The request may include these items:
+
+* filename
+* md5sum
+* are the chunks compressed?
+* are the chunks encrypted?
+* how many times to replicate
+* if using parity, which chunks are grouped
+* for each chunk
+  - size
+  - checksum
+  - type (normal, parity)
+
+
+The control node responds with a list of candidate nodes that meet the
+client's requirements and begins a storage transaction.  For each storage node
+in the list, the client attempts to upload the assigned data chunk.  For
+chunks the client is unable to upload due to storage node problems, it reports
+to the control node.  The control node will respond with a replacement node.
+Once the client has completed uploading all chunks, it reports completion to
+the control node.  Note however, that transaction is not considered complete
+until relevant storage nodes (including replication nodes) have reported back.  
+
+Retrieving a File
+-----------------
+
+For a client to retrieve a file, it requests a list of storage nodes from the
+server that contain the chunks required to reconstruct the file.  After
+receiving the list, for each storage node in the list, it requests the
+associated chunk.  The storage node then verifies the request with the control
+node and delivers the data chunk to the client. After the client has received
+all data chunks, it reports to the control node, then reconstructs the file.
+
+
+Replicating a Chunk
+-------------------
+
+After a chunk is first uploaded, it is replicated a number of times according
+to the mirror count assigned to the chunk's volume. The replication strategy
+is determined by the control node and may be based on the capabilities and
+load of the storage nodes which posess the chunk.
+
+The control node may instruct a storage node to replicate a chunk by making a
+send_chunk request.  The replication request message includes signed arguments
+to be relayed to the replication target storage node for a store_chunk
+request.  The replication target handles the request exactly as for a
+store_chunk request initiated by a client node.
+
+
+Request Signatures
+------------------
+
+Arguments for a request are signed using the HMAC algorithm described by RFC
+2104, a shared 128 bit secret key and the sha256 hash function.  When signed,
+the signature and signature time are prepended to the message.  Prior to being
+signed, the message is serialized by concantenating the arguments.  FIXME: The
+detailes of the serialization process is to be explained.
+
+
+Request Expiration
+------------------
+
+Some requests include an expiration time argument.  The recipient of a request
+received after the expiration time it contains should ignore the request.
+
+
+Storage Node Checks
+-------------------
+
+The storage node is to perform regular duties to maintain the integrity of the
+data.  The node owner may prefer to have these checks run at their
+convenience, which is fine as long as they are run at the prescribed frequency
+(e.g. once per week).  These checks include, but are not limited to data
+checksums and inventory.  In the case of inventory, the storage node reports
+the list of chunk names to the control node for comparison. On occasion, the
+control node may request random chunks from the storage node to check itself.

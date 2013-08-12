@@ -1,0 +1,12 @@
+Source: scatterbytes-repository
+Section: net
+Priority: extra
+Standards-Version: 3.9.3
+Maintainer: Randall Smith <randall@scatterbytes.net>
+Build-Depends: debhelper (>= 8)
+
+Package: scatterbytes-repository
+Architecture: all
+Depends: ${misc:Depends}
+Description: APT Repository for ScatterBytes software.
+ This package installs an APT repository and GPG key in order to install and update ScatterBytes packages.

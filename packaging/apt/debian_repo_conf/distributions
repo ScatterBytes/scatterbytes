@@ -1,0 +1,9 @@
+Origin: scatterbytes.net
+Label: ScatterBytes Debian Repository
+Codename: unstable
+Architectures: i386 amd64 armel mips mipsel powerpc source
+Components: main
+Description: Apt repository for ScatterBytes
+DebOverride: override.stable
+DscOverride: override.stable
+SignWith: E17566D2

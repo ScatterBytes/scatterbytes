@@ -1,0 +1,14 @@
+Source: scatterbytes-cli
+Section: net
+Priority: extra
+Standards-Version: 3.9.3
+Maintainer: Randall Smith <randall@scatterbytes.net>
+Build-Depends: python (>= 2.6), debhelper (>= 8)
+
+Package: scatterbytes-cli
+Architecture: all
+Depends: python (>= 2.6), python-m2crypto, python-argparse, python-daemon, python-formencode
+Description: CLI for accessing the ScatterBytes Network
+ The ScatterBytes network is a distributed and redundant data storage network.
+ This package provides an interface to the network as well as a daemon to run a
+ storage node.

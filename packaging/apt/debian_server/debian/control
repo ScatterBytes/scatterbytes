@@ -1,0 +1,15 @@
+Source: scatterbytes-server
+Section: net
+Priority: extra
+Standards-Version: 3.9.3
+Maintainer: Randall Smith <randall@scatterbytes.net>
+Build-Depends: debhelper (>= 8)
+
+Package: scatterbytes-server
+Architecture: all
+Depends: scatterbytes-cli (>= 0.8.23), ${misc:Depends}, adduser
+Description: Storage Node Server for the ScatterBytes Network
+ The ScatterBytes network is a distributed and redundant data storage network.
+ This package provides a daemon to run a storage node. You will require an
+ account, which you can create by setting auto_register in the config or at 
+ https://www.scatterbytes.net.

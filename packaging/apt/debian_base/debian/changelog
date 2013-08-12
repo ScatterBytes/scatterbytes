@@ -1,0 +1,59 @@
+scatterbytes-cli (0.9.9-sbnet2) unstable; urgency=low
+
+  * new build 
+
+ -- "Randall Smith" <randall@scatterbytes.net>  Thu, 11 Jul 2013 15:01:33 -0500
+
+scatterbytes-cli (0.9.9-sbnet1) unstable; urgency=low
+
+  * new build
+
+ -- Randall Smith <randall@scatterbytes.net>  Thu, 11 Jul 2013 14:39:02 -0500
+
+scatterbytes-cli (0.9.3-sbnet2) unstable; urgency=low
+
+  * test build 
+
+ -- Randall Smith <randall@scatterbytes.net>  Thu, 11 Jul 2013 14:34:37 -0500
+
+scatterbytes-cli (0.9.3-sbnet1) unstable; urgency=low
+
+  * changed config format
+
+ -- Randall Smith <randall@scatterbytes.net>  Fri, 19 Apr 2013 14:21:56 -0500
+
+scatterbytes-cli (0.9.1-sbnet1) unstable; urgency=low
+
+  * server fixes
+
+ -- Randall Smith <randall@scatterbytes.net>  Mon, 11 Mar 2013 16:40:13 -0500
+
+scatterbytes-cli (0.8.26-sbnet1) unstable; urgency=low
+
+  * changes for cli
+
+ -- Randall Smith <randall@scatterbytes.net>  Wed, 06 Mar 2013 22:46:43 -0600
+
+scatterbytes-cli (0.8.23-sbnet1) unstable; urgency=low
+
+  * fixed update 
+
+ -- Randall Smith <randall@scatterbytes.net>  Tue, 05 Mar 2013 09:48:50 -0600
+
+scatterbytes-cli (0.8.18-sbnet3) unstable; urgency=low
+
+  * fixed postrm 
+
+ -- Randall Smith <randall@scatterbytes.net>  Mon, 04 Mar 2013 13:38:00 -0600
+
+scatterbytes-cli (0.8.18-sbnet2) unstable; urgency=low
+
+  * changed description and added formencode to dependencies 
+
+ -- Randall Smith <randall@scatterbytes.net>  Mon, 04 Mar 2013 12:39:18 -0600
+
+scatterbytes-cli (0.8.18-sbnet1) unstable; urgency=low
+
+  * reset for new package name
+
+ -- Randall Smith <randall@scatterbytes.net>  Mon, 04 Mar 2013 12:32:12 -0600

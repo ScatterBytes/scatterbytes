@@ -1,0 +1,244 @@
+#!/usr/bin/env python
+
+"""ScatterBytes CLI
+
+This program is a front end for the scatterbytes library.  Call it with
+"--help" for usage information.
+
+This program contains just the code needed to bootstrap and call the
+scatterbytes package.  If the package is not found, it will download and
+verify it.
+
+"""
+
+__version__ = '0.9.9'
+
+import os
+import re
+import sys
+import urllib2
+import logging
+import platform
+
+
+logger = logging.getLogger('sbnet')
+
+
+def setup_logging():
+    logging_level = os.environ.get('SB_LOGGING_LEVEL') or 'INFO'
+    logging.basicConfig(level=getattr(logging, logging_level))
+    logger.debug('setup logging')
+
+
+setup_logging()
+
+
+if sys.version_info[:2] not in ((2, 6), (2, 7)):
+    sys.stderr.write('Python 2.6 or 2.7 is required.\n')
+    sys.exit(1)
+
+# Check os.environ for overrides. Useful for testing.
+
+UPDATE_URL = os.environ.get('SB_UPDATE_URL') or \
+    'https://controlnode.scatterbytes.net:8080/updates'
+
+# Use a system installed package instead of bootstrapping.
+USE_SYSTEM_PACKAGE = os.environ.get('SB_USE_SYS_PKG') == '1'
+
+
+# local cache
+CACHE = {}
+
+
+CA_ROOT_CERT_PEM = """
+-----BEGIN CERTIFICATE-----
+MIIC7TCCAdWgAwIBAgIBATANBgkqhkiG9w0BAQUFADAxMRAwDgYDVQQDEwdSb290
+IENBMR0wGwYDVQQKExRTY2F0dGVyQnl0ZXMgTmV0d29yazAeFw0xMjAxMjAxNTA0
+MTNaFw0zNzAxMTMxNTA0MTNaMDExEDAOBgNVBAMTB1Jvb3QgQ0ExHTAbBgNVBAoT
+FFNjYXR0ZXJCeXRlcyBOZXR3b3JrMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEApb0M5hjLcWAt59KlyIKDrqGelrvzpH4+VW6Zqx2jqGAaMJ4uwupXuRAN
+JBckHDbIZkCoBAC2edUngx8Zmbjud0EoH2nWuibWALrw/FdwYC8TMhSfwF1a7+5N
+go0S7ZUKWemDl4oIDWEGPb0eIBDKujq+gsHFj9T9XEtz+zhgthqGld8SVVl6zIaJ
+J54H7oslTWl23tXw0eir0uJMQqlJK2hBSzlvOBgdwKlrc8B4YJgXOH5jz0+jPuZx
+vaW78wZy0WmzMv5UNg6fbghTsduMuchrBY49cGc4390hFvleoFWpBnr3D0InKqn9
+5pgzX1hxx9OWC6X0F/fWHtK9nfskawIDAQABoxAwDjAMBgNVHRMEBTADAQH/MA0G
+CSqGSIb3DQEBBQUAA4IBAQA1Icz1s2OgQcgXaG2qpFZYUbSjw2lbNn7JfcfiDL2A
++Y585xXMZXq482LPxkj7MxaOEY3LPIAK1mp6CD/cmbL8ZkAKgUWQnNQreCvI6wnk
+WP3Amg3zYBT1puSL/FT9nF1HQ0lKu8WM6Zw+6EPc+MHw2dE0dZRvzcyvge6aiYhs
+zFYTiqeEKuS8et5+8IFqQ97pH55dX8/xocsGoJuAPO+4JTrT7GdQkBB1tAL3hhbJ
+cOgLVWbW40a9JXVNr+iiIKgP7oWCbpgnfkaWXSOYSOR5zTwbPG8e/wYyi8M1Ujl/
+XIUOqvFRY63WUKL3DfGY+bKPPgBbi4bBxHc3UCFI5kwE
+-----END CERTIFICATE-----
+"""
+
+if 'SB_ROOT_CERT_PATH' in os.environ:
+    CA_ROOT_CERT_PEM = open(os.environ['SB_ROOT_CERT_PATH']).read()
+
+PACKAGE_RE = re.compile(r'^scatterbytes-package-(\d+.\d+.\d+).zip$')
+
+
+def find_home_dir(use_cache=True):
+    if use_cache and 'home_dir' in CACHE:
+        return CACHE['home_dir']
+    if platform.system().lower() == 'windows':
+        home = os.environ.get('HOMEPATH', None)
+        if not home:
+            home = os.path.expanduser('~')
+    else:
+        home = os.path.expanduser('~')
+    if not home:
+        raise StandardError("Can't find home directory.")
+    CACHE['home_dir'] = home
+    return home
+
+
+def is_sb_user():
+    "Is this a dedicated scatterbytes user?"
+    # if so, there is no need for a namespace such as .config/scatterbytes
+    home_dir = find_home_dir()
+    has_access = os.access(home_dir, os.W_OK)
+    if home_dir and home_dir.lower().endswith('scatterbytes') and has_access:
+        return True
+    return False
+
+
+def find_data_dir(use_cache=True):
+    """Find the directory to write data to.
+
+    """
+
+    if use_cache and 'data_dir' in CACHE:
+        return CACHE['data_dir']
+    if platform.system().lower() == 'windows':
+        app_data = os.environ.get('APPDATA', None)
+        if not app_data:
+            app_data == find_home_dir()
+        sb_dir = os.path.join(app_data, 'ScatterBytes')
+    else:
+        if is_sb_user():
+            sb_dir = find_home_dir()
+        else:
+            sb_dir = os.path.join(
+                find_home_dir(), '.local', 'share', 'scatterbytes'
+            )
+    if not sb_dir:
+        raise StandardError("can't find application data directory")
+    # Need this directory if it doesn't exist yet.
+    if not os.path.exists(sb_dir):
+        os.makedirs(sb_dir)
+    CACHE['data_dir'] = sb_dir
+    return sb_dir
+
+
+def find_package_path():
+    data_dir = find_data_dir()
+    package_names = []
+    for f in os.listdir(data_dir):
+        match = PACKAGE_RE.match(f)
+        if match:
+            package_names.append(f)
+    if package_names:
+        package_names.sort()
+        package_name = package_names[-1]
+        package_path = os.path.join(data_dir, package_name)
+        return package_path
+
+
+def add_package_to_path(package_path=None):
+    if package_path is None:
+        package_path = find_package_path()
+        assert package_path, 'no package found'
+    if package_path not in sys.path:
+        sys.path.insert(1, package_path)
+
+
+def get_current_package_info():
+    "grab the current package info from the update host"
+    url = UPDATE_URL + '/scatterbytes-package.txt'
+    f = urllib2.urlopen(url)
+    package_text = f.read()
+    (pkg_name, pkg_hash, pkg_sig) = package_text.split()
+    pkg_version = PACKAGE_RE.match(pkg_name).groups()[0]
+    return (pkg_name, pkg_version, pkg_hash, pkg_sig)
+
+
+def check_cert_signature(cert_pem_string):
+    """check that a certificate was signed by root cert"""
+    import M2Crypto.X509
+    cert = M2Crypto.X509.load_cert_string(cert_pem_string)
+    root_cert = M2Crypto.X509.load_cert_string(CA_ROOT_CERT_PEM)
+    assert cert.verify(root_cert.get_pubkey()), 'certificate not verified'
+
+
+def get_software_signer_cert():
+    url = UPDATE_URL + '/software_signer_cert.pem'
+    cert_pem = urllib2.urlopen(url).read()
+    check_cert_signature(cert_pem)
+    return cert_pem
+
+
+def get_current_package():
+    """get the current scatterbytes package"""
+    import hashlib
+    import binascii
+    (pkg_name, pkg_version, pkg_hash, pkg_sig) = get_current_package_info()
+    pkg_url = UPDATE_URL + '/' + pkg_name
+    f = urllib2.urlopen(pkg_url)
+    pkg_data = f.read()
+    # check the hash
+    calc_hash = hashlib.sha256(pkg_data).hexdigest()
+    assert calc_hash == pkg_hash
+    # check the signature on the hash
+    import M2Crypto.X509
+    sw_sig_cert_pem = get_software_signer_cert()
+    cert = M2Crypto.X509.load_cert_string(sw_sig_cert_pem)
+    pubkey = cert.get_pubkey()
+    pubkey.verify_init()
+    pubkey.verify_update(calc_hash)
+    pkg_sig_bin = binascii.unhexlify(pkg_sig)
+    assert pubkey.verify_final(pkg_sig_bin) == 1, 'signature check failed'
+    return (pkg_name, pkg_version, pkg_data)
+
+
+def bootstrap():
+    logger.info('bootstrapping  - downloading scatterbytes package')
+    # scatterbytes package first
+    try:
+        response = get_current_package()
+        if response:
+            (package_name, package_version, package_data) = response
+            # checks passed - save the program
+            sb_path = os.path.join(find_data_dir(), package_name)
+            open(sb_path, 'wb').write(package_data)
+            # test it
+            add_package_to_path(sb_path)
+            try:
+                import scatterbytes.cli
+                logger.debug('imported %s' % scatterbytes.cli)
+            except:
+                os.unlink(sb_path)
+                logger.error('new package failed - removing', exc_info=True)
+            return sb_path
+    except:
+        logger.error('error bootstrapping package', exc_info=True)
+
+
+def main():
+    if not USE_SYSTEM_PACKAGE:
+        package_path = find_package_path()
+        package_path_1 = package_path
+        if package_path is None:
+            bootstrap()
+        else:
+            add_package_to_path(package_path)
+            import scatterbytes.updates
+            scatterbytes.updates.update_all()
+            package_path = find_package_path()
+            if package_path != package_path_1:
+                add_package_to_path(package_path)
+                scatterbytes.updates.reload_package()
+    import scatterbytes.cli
+    scatterbytes.cli.run()
+
+if __name__ == '__main__':
+    main()

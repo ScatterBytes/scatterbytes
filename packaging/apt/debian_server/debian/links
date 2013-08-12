@@ -1,0 +1,2 @@
+/var/lib/scatterbytes/storage_node.config /etc/scatterbytes.conf
+/var/lib/scatterbytes/logs /var/log/scatterbytes

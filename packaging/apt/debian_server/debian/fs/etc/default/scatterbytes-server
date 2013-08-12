@@ -1,0 +1,9 @@
+# Enable the scatterbytes storage node service to run.
+# First, configure a storage node.  Check the configuration at
+# /etc/scatterbytes.conf.  To make editing easier, you may want to join the
+# scatterbytes group (sudo adduser $USER scatterbytes).  Afterwards, you can go
+# ahead and realize the new group by executing (exec su -l $USER).
+
+# uncomment to enable
+#
+# enable_service=true
