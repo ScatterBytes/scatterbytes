@@ -37,12 +37,12 @@ certificates.
 Requirements
 ------------
 
- - Python 2.6 or 2.7
+- Python 2.6 or 2.7
 
- - M2Crypto:  All of the cryptographic functionality is provided by M2Crypto,
-   which is required by both client and storge nodes. It is used to encrypt all
-   communications, encrypt files, and identify (using X.509 certificates) all
-   nodes on the network.
+- M2Crypto:  All of the cryptographic functionality is provided by M2Crypto,
+  which is required by both client and storge nodes. It is used to encrypt all
+  communications, encrypt files, and identify (using X.509 certificates) all
+  nodes on the network.
 
 
 Installing
