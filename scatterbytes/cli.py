@@ -731,7 +731,7 @@ def create_parsers():
     find_parser.set_defaults(func=find_files)
     # update file
     file_update_parser = subparsers.add_parser(
-        'update', help='update file information'
+        'update', help='update file metadata'
     )
     file_update_parser.add_argument(
         'file_name', type=str, help='filename to update'
