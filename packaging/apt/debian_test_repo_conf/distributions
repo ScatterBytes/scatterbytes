@@ -1,4 +1,4 @@
-Origin: test.scatterbytes.net
+Origin: sb-server.lxc
 Label: Test ScatterBytes Debian Repository
 Codename: unstable
 Architectures: i386 amd64 armel mips mipsel powerpc source

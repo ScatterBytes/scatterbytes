@@ -72,13 +72,13 @@ class BuildZipPackage(build_py):
         shutil.copy2(script_path, output_path)
         sig_path = os.path.join(build_dir, 'sbnet.txt')
         self._sign(output_path, sig_path)
-        
+
 
 if sys.version_info[0] <> 2 or sys.version_info[1] not in (6, 7):
-    print 'Python 2.6 or 2.7 is required' 
+    print 'Python 2.6 or 2.7 is required'
     sys.exit(1)
 
-install_requires=[]
+install_requires=['formencode',]
 if sys.version_info < (2,7):
     install_requires=['argparse>=1.1']
 # Require daemon if this is a forking OS
