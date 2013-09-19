@@ -5,7 +5,7 @@ import sys
 from distutils.command.build_py import build_py
 from setuptools import setup, find_packages
 
-VERSION = '0.9.11'
+VERSION = '0.9.12'
 
 class BuildZipPackage(build_py):
     description = "create zipped package signed and ready to run"
@@ -78,13 +78,13 @@ if sys.version_info[0] <> 2 or sys.version_info[1] not in (6, 7):
     print 'Python 2.6 or 2.7 is required'
     sys.exit(1)
 
-install_requires=['formencode',]
+install_requires=['formencode']
 if sys.version_info < (2,7):
-    install_requires=['argparse>=1.1']
+    install_requires.append('argparse>=1.1')
 # Require daemon if this is a forking OS
 try:
     os.fork
-    install_requires=['python-daemon']
+    install_requires.append('python-daemon')
 except AttributeError:
     pass
 
