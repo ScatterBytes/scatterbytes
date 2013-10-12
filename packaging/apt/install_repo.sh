@@ -26,7 +26,7 @@ if [ ! -e $APT_FILEPATH ]; then
     if [ "$1" = "server" ]; then
         apt-get update && apt-get -y install scatterbytes-server
     else
-        apt-get update && apt-get -y install scatterbytes
+        apt-get update && apt-get -y install scatterbytes-cli
     fi
 else
     echo "Repository $APT_FILEPATH is already present."
