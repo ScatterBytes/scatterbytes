@@ -10,6 +10,7 @@ from ..util import setup_logging
 from ..util import datetime_from_string
 from .node import StorageNode
 from .node import StorageNodeConfig
+from ..errors import ConfigError
 from ..jsonrpc import SSLRPCServer
 from ..jsonrpc import ThreadedSSLRPCServer
 from ..jsonrpc import RPCDispatcher
@@ -294,21 +295,18 @@ def start_server(daemonize=True, config=None):
         }
         context = daemon.DaemonContext(**daemon_kwargs)
         context.open()
-        ### For some reason, this only works when here.
-        ##signal.signal(signal.SIGTERM, signal_handler)
 
     setup_logging(config)
 
-    # Register if no node_id and auto_register set.
     # The storage node will not initialize if it isn't registered.
+    if not config.get('node_id'):
+        logger.error('missing node_id')
+        raise ConfigError('missing node_id')
+    if not os.path.exists(config.cert_path) and \
+            not config.get('recert_code'):
+        logger.error('missing recert_code')
+        raise ConfigError('missing recert_code')
     control_node_proxy = ControlNodeProxy(config)
-    if not config.get('node_id') and config.get('auto_register'):
-        logger.info('missing node_id - registering')
-        proxy = control_node_proxy
-        response = proxy.register('storage')
-        config.set('node_id', response['node_info']['node_id'])
-        config.set('recert_code', response['node_info']['recert_code'])
-        config.save()
     storage_node = create_storage_node(control_node_proxy, config=config)
     # seed random number generator
     seed_path = os.path.join(config.data_directory, 'randpool.dat')
@@ -330,7 +328,7 @@ def start_server(daemonize=True, config=None):
     if not daemonize:
         signal.signal(signal.SIGTERM, signal_handler)
         signal.signal(signal.SIGINT, signal_handler)
-        # just wait until we're asked to exit
-        # got to keep this process going for the signal handler to work
+    # just wait until we're asked to exit
+    # got to keep this process going for the signal handler to work
     while 1:
         time.sleep(.1)

@@ -50,6 +50,7 @@ def calc_file_crc32(f, contains_checksum=False):
         fl.close()
     return cksum
 
+
 def calc_hash(data, salt=None, constructor=hashlib.sha1):
     s = constructor()
     if salt:
@@ -62,8 +63,9 @@ def calc_hash(data, salt=None, constructor=hashlib.sha1):
         hash = salt + hash
     return b64encode(hash)
 
+
 def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
-                                                        return_type='base64'):
+                   return_type='base64'):
     """Calculate a hash for a file.
 
     f may be either a file like object or a file path.
@@ -119,7 +121,7 @@ def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
 # TLS keys and certificates
 
 def stretch_passphrase(passphrase, salt=None, iterations=10000, length=32,
-                                                    output_format='binary'):
+                       output_format='binary'):
     """Stretch a password using pbkdf2
 
     """
@@ -179,7 +181,7 @@ class Certificate(object):
 
     def as_pem(self):
         if self._pem_string:
-            return pem_string
+            return self._pem_string
         elif self._filepath:
             return open(self._filepath).read()
         else:
@@ -222,10 +224,10 @@ class Certificate(object):
     @property
     def info(self):
         return {
-            'CN' : self.CN,
-            'O' : self.O,
-            'OU' : self.OU,
-            'serial_number' : self.serial_number
+            'CN': self.CN,
+            'O': self.O,
+            'OU': self.OU,
+            'serial_number': self.serial_number
         }
 
     def verify(self, pkey):
@@ -365,7 +367,8 @@ class SigKey(object):
             # use the xmlrpc speced iso8601 format
             return message.strftime('%Y%m%dT%H%M%S')
         else:
-            emsg = '%s of type %s not supported' % (repr(message), type(message))
+            emsg = '%s of type %s not supported' % \
+                (repr(message), type(message))
             raise StandardError(emsg)
 
     def sign(self, message):
@@ -431,11 +434,13 @@ def make_context(ca_cert_path, cert_path, key_path, mode='client'):
     #ctx.set_info_callback()
     return ctx
 
+
 def prepare_ssl_output_dir(output_path):
     if output_path:
         output_dir = os.path.dirname(output_path)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir, 0700)
+
 
 def create_pkey(key_size=2048, output_path=None):
     """Create RSA key pair.
@@ -450,11 +455,13 @@ def create_pkey(key_size=2048, output_path=None):
         os.chmod(output_path, 0600)
     return pkey
 
+
 def load_pkey(key_path):
     """load a public key - with private key if available
 
     """
     return M2Crypto.EVP.load_key(key_path)
+
 
 def create_csr(pkey, CN, O="ScatterBytes Network", output_path=None):
     """Create and return a M2Crypto.X509.Request
@@ -473,6 +480,7 @@ def create_csr(pkey, CN, O="ScatterBytes Network", output_path=None):
     del pkey
     return req
 
+
 def create_certificate(csr, serial_number, days_valid, ca_pkey,
                        ca_cert=None, is_ca=False, output_path=None):
     """Create a new X509 Certificate
@@ -485,7 +493,7 @@ def create_certificate(csr, serial_number, days_valid, ca_pkey,
     # for self signed, check that csr key matches public key
     # must be an easier way
     self_signed = ca_cert is None and \
-                                ca_pkey.as_der() == csr.get_pubkey().as_der()
+        ca_pkey.as_der() == csr.get_pubkey().as_der()
     if self_signed:
         logger.debug('creating self signed certificate')
         assert is_ca, 'self signed cert must be a CA'
@@ -525,6 +533,7 @@ def create_certificate(csr, serial_number, days_valid, ca_pkey,
     if ca_cert:
         assert cert.verify(ca_cert.get_pubkey())
     return cert
+
 
 def load_certificate(cert_path=None, wrap=False):
     cert = X509.load_cert(cert_path)

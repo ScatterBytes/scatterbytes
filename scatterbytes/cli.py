@@ -207,7 +207,8 @@ def set_encryption_passphrase(config=None, save=True):
     if config is None:
         config = ClientNodeConfig.get_config()
     msg = ('Enter a passphrase for your key. If you leave it blank '
-           'a random 256 bit passphrase will be created for you.')
+           'a random 256 bit passphrase will be created for you. '
+           'You will not see output as you type.')
     print textwrap.fill(msg)
     password_set = False
     while not password_set:
@@ -271,6 +272,36 @@ def setup(config_class, node_factory):
         set_encryption_passphrase(config)
 
 
+def setup_basic(config):
+    msg = 'Your configuration file is located at %s. ' % config.config_path
+    msg += 'You can edit the configuration file with a text editor.'
+    print textwrap.fill(msg)
+    print
+
+    def setup_value(value_name, value_text):
+        change = False
+        if not config.get(value_name):
+            change = True
+        else:
+            print 'Current value for "%s": %s' % \
+                (value_text, config.get(value_name))
+            response = input_yesno('Change %s?' % value_text, 'no')
+            if response == 'yes':
+                change = True
+        if change:
+            raw_node_id = raw_input('Enter value for %s: ' % value_text)
+            config.set(value_name, raw_node_id.strip())
+            config.save()
+
+    # Node ID
+    setup_value('node_id', 'Node ID')
+    print
+
+    # Cert Code
+    setup_value('recert_code', 'Certificate Code')
+    print
+
+
 def setup_storage_node(args):
     from .storage.node import StorageNodeConfig
     if args.make_config:
@@ -281,13 +312,20 @@ def setup_storage_node(args):
 
 def setup_client_node(args):
     from .client.node import ClientNodeConfig
-    if args.make_config:
-        ClientNodeConfig.get_config()
-        return
-    elif args.set_passphrase:
+    config = ClientNodeConfig.get_config()
+    if args.set_passphrase:
+        if config.encrypt_passphrase:
+            msg = "A passphrase is already set. Are you sure you want "
+            msg += "to overwrite it?"
+            answer = input_yesno(msg, 'no')
+            if answer != 'yes':
+                return
         set_encryption_passphrase()
         return
-    setup(ClientNodeConfig, create_client_node)
+    else:
+        setup_basic(config)
+    if not config.encrypt_passphrase:
+        set_encryption_passphrase(config)
 
 
 def proxy_cmd(f, mode='client'):
@@ -568,6 +606,10 @@ def create_parsers():
     storage_setup_parser.add_argument(
         '--make-config', '-c', action='store_true',
         help='create a skeleton config only'
+    )
+    storage_setup_parser.add_argument(
+        '--set-node_id', '-n', action='store_true',
+        help='set node_id in config'
     )
     storage_setup_parser.set_defaults(func=setup_storage_node)
     # start storage node
