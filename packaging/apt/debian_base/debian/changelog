@@ -1,3 +1,21 @@
+scatterbytes-cli (0.9.14-sbnet2) unstable; urgency=low
+
+  *  version update
+
+ -- Randall Smith <randall@scatterbytes.net>  Sat, 12 Oct 2013 15:36:41 -0500
+
+scatterbytes-cli (0.9.13-sbnet2) unstable; urgency=low
+
+  * updated init script to start and stop server 
+
+ -- Randall Smith <randall@scatterbytes.net>  Sat, 12 Oct 2013 15:12:30 -0500
+
+scatterbytes-cli (0.9.13-sbnet1) unstable; urgency=low
+
+  * updated init script for server
+
+ -- Randall Smith <randall@scatterbytes.net>  Sat, 12 Oct 2013 14:57:10 -0500
+
 scatterbytes-cli (0.9.9-sbnet2) unstable; urgency=low
 
   * new build 

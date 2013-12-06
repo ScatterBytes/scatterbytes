@@ -151,10 +151,10 @@ def prompt_register(config):
     else:
         node_type = 'storage'
 
-    msg = 'Your node_id is not set. If you already have a node_id, '
-    msg += 'answer "No" to set it manually. '
-    msg += 'Would you like to register now?'
-    response = input_yesno(msg, 'no')
+    msg = ('Your Node ID is not set. If you do not already have a '
+           'Node ID, you can register now. Do you want to register '
+           'now?')
+    response = input_yesno(msg, 'yes')
     if response == 'no':
         return
 
@@ -254,10 +254,10 @@ def setup(config_class, node_factory):
     print
     if not config.get('node_id'):
         if not prompt_register(config):
-            raw_node_id = raw_input('Enter the node_id assigned to you: ')
+            raw_node_id = raw_input('Enter the Node ID assigned to you: ')
             config.set('node_id', raw_node_id.strip())
     if not config.get('recert_code'):
-        raw_recert_code = raw_input('Enter the recert_code assigned to you: ')
+        raw_recert_code = raw_input('Enter the Recert Code assigned to you: ')
         config.set('recert_code', raw_recert_code.strip())
     if config_class is ClientNodeConfig and config.encrypt_passphrase:
         set_encryption_passphrase(config, save=False)
@@ -267,6 +267,8 @@ def setup(config_class, node_factory):
         print 'Fetching your certificate.'
         node = node_factory(config=config)
         node.request_new_certificate()
+    if not config.encrypt_passphrase:
+        set_encryption_passphrase(config)
 
 
 def setup_storage_node(args):

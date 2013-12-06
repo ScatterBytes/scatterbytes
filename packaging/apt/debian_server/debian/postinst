@@ -47,4 +47,8 @@ esac
 
 #DEBHELPER#
 
+if [ -f /etc/init.d/scatterbytes-server ]; then
+    invoke-rc.d scatterbytes-server start
+fi
+
 exit 0

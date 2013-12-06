@@ -5,7 +5,7 @@ import sys
 from distutils.command.build_py import build_py
 from setuptools import setup, find_packages
 
-VERSION = '0.9.12'
+VERSION = '0.9.14'
 
 class BuildZipPackage(build_py):
     description = "create zipped package signed and ready to run"
