@@ -334,74 +334,7 @@ class RegistrationTask(Task):
             config = self.storage_node.config
             response = register(proxy, config)
             status = response['status']
-            profile = response['profile']
             self.set_value('status', status)
-            self.set_value('server_profile', profile)
-
-
-class UpdateProfileTask(Task):
-
-    def __init__(self, storage_node, period=60):
-        self.storage_node = storage_node
-        self.config = self.storage_node.config
-        # time base to determine if config has been altered and should be
-        # updated.
-        self.config_update_time = None
-        Task.__init__(self, period)
-
-    def run(self):
-        # profile is originally given upon registration - fetch from
-        # registration task
-        server_profile = self.get_value('server_profile')
-        if server_profile is None:
-            logger.info('server_profile not set - waiting')
-            return
-        self.update_profile(server_profile)
-
-    def update_profile(self, server_profile):
-        logger.debug('potentially updating profile')
-        # see if options need updating.
-        # read config and update profile
-        # Only re-read config if file is modified.
-        logger.debug('config mtime: %s' % self.config.mtime)
-        logger.debug('last config update: %s' % self.config_update_time)
-        if self.config_update_time and \
-                self.config.mtime > self.config_update_time:
-            # file edited externally
-            try:
-                self.config.read()
-            except:
-                logger.error('trouble with log file', exc_info=True)
-                return
-        else:
-            if self.config_update_time:
-                # file is unaltered - no reason to update
-                return
-        # update
-        profile_data = {}
-        control_node_proxy = self.storage_node.control_node_proxy
-        logger.debug('checking for profile differences')
-        for option in server_profile.keys():
-            # section should be in defaults
-            if option in self.config.defaults:
-                section_name = self.config.defaults[option][0]
-            else:
-                section_name = 'main'
-            config_option = self.config.get(option, section=section_name)
-            server_option = server_profile[option]
-            if config_option == '':
-                config_option = None
-            if config_option != server_option:
-                profile_data[option] = config_option
-        if profile_data:
-            logger.debug('upating profile: %s' % str(profile_data))
-            response = control_node_proxy.update_profile(profile_data)
-            if response['errors']:
-                logger.warning(
-                    'misconfigured data: %s' % str(response['errors'])
-                )
-            self.set_value('server_profile', response['profile'])
-        self.config_update_time = time.time()
 
 
 class CheckFileIntegrityTask(Task):
@@ -533,7 +466,6 @@ class StorageNode(UserNode):
         tasks = []
         if self.startup_registration_updater:
             tasks.append(RegistrationTask(self))
-            tasks.append(UpdateProfileTask(self))
         ##tasks.append(CheckFileIntegrityTask(self))
         self.task_scheduler = TaskScheduler(self.shutdown_event, tasks)
         self.task_scheduler.start()
@@ -770,14 +702,6 @@ class StorageNodeConfig(ConfigBase):
     defaults.update({
         'listen_address': ('network', '0.0.0.0', None),
         'listen_port': ('network', 8085, 'int'),
-        'max_storage': ('main', 10000, 'int'),
-        'contact_address': ('notification', '', None),
-        'bitcoin_address': ('payment', '', None),
-        'payment_method': ('payment', 'bitcoin', None),
-        # threshold in satoshi (10^-8 BTC)
-        # default is 10^6 satoshi (.01 BTC)
-        'bitcoin_payment_threshold': ('payment', 10 ** 6, 'int'),
-        'auto_register': ('main', True, 'boolean'),
         'update_check_period': ('main', 3600, 'int'),
     })
 
