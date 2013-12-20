@@ -79,7 +79,7 @@ class HTTPSConnection(HTTPConnection):
         self.session = None
         self._timeout = timeout
         HTTPConnection.__init__(
-            self, host, port, strict, source_address = source_address
+            self, host, port, strict, source_address=source_address
         )
 
     def connect(self):
@@ -119,7 +119,7 @@ class HTTPSConnection(HTTPConnection):
 
 def create_connection(url=None, host=None, port=None, strict=None,
                       timeout=DEFAULT_TIMEOUT, source_address=('', 0),
-                                                        ssl_context=None):
+                      ssl_context=None):
     """factory to create HTTPConnection or HTTPSConnection"""
     assert url or host
     if url:
@@ -155,7 +155,7 @@ class HandlerLoggingMixIn(object):
             # stdout handler
             handler = logging.StreamHandler(sys.stdout)
         else:
-            handler = logging.RotatingFileHandler(file_path, maxBytes=2**20)
+            handler = logging.RotatingFileHandler(file_path, maxBytes=2 ** 20)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         self.request_logger = logger
@@ -172,7 +172,7 @@ class HandlerLoggingMixIn(object):
 class HTTPServer(SocketServer.TCPServer):
 
     def __init__(self, server_address, RequestHandlerClass,
-                                                    bind_and_activate=True):
+                 bind_and_activate=True):
         SocketServer.BaseServer.__init__(self, server_address,
                                          RequestHandlerClass)
         self._create_socket()
@@ -216,11 +216,12 @@ class HTTPSServer(HTTPServer):
     """
 
     def __init__(self, server_address, RequestHandlerClass, ssl_context,
-                                                    bind_and_activate=True):
+                 bind_and_activate=True):
         ssl_context.set_session_cache_mode(m2.SSL_SESS_CACHE_BOTH)
         self.ssl_ctx = ssl_context
-        HTTPServer.__init__(self, server_address, RequestHandlerClass,
-                                                        bind_and_activate)
+        HTTPServer.__init__(
+            self, server_address, RequestHandlerClass, bind_and_activate
+        )
 
     def _create_socket(self):
         self.socket = SSL.Connection(self.ssl_ctx)
@@ -231,10 +232,10 @@ class HTTPSServer(HTTPServer):
             pem_string=request.get_peer_cert().as_pem()
         )
         request.client_cert_info = {
-            'CN' : cert.CN,
-            'O' : cert.O,
-            'OU' : cert.OU,
-            'serial_number' : cert.serial_number
+            'CN': cert.CN,
+            'O': cert.O,
+            'OU': cert.OU,
+            'serial_number': cert.serial_number
         }
         logger.debug('cert info: %s' % str(request.client_cert_info))
         HTTPServer.finish_request(self, request, client_address)
