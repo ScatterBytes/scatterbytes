@@ -16,7 +16,7 @@ from . import __version__ as VERSION
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TIMEOUT = 20
+DEFAULT_TIMEOUT = 10
 
 
 class ClientSideChecker(Checker):
@@ -42,8 +42,8 @@ class HTTPConnection(httplib.HTTPConnection):
             kwargs['source_address'] = source_address
         httplib.HTTPConnection.__init__(*args, **kwargs)
         self._default_headers = {
-            'Connection' : 'close',
-            'User-Agent' : 'ScatterBytes Client %s' % VERSION,
+            'Connection': 'close',
+            'User-Agent': 'ScatterBytes Client %s' % VERSION,
         }
 
     def request(self, method, url, body=None, headers=None):
@@ -83,16 +83,15 @@ class HTTPSConnection(HTTPConnection):
         )
 
     def connect(self):
+        logger.debug('making HTTPS connection')
         sock = SSL.Connection(self.ssl_ctx)
         if self.source_address != ('', 0):
             sock.bind(self.source_address)
         # timeout doesn't work - use M2Crypto timeout on connect
         if self._timeout:
-            # convert to microseconds
-            m2_timeout = SSL.timeout(
-                # set minimum of 1 microsecond
-                microsec=(int(self._timeout * 1000) or 1)
-            )
+            logger.debug('setting timeout to %s seconds' % self._timeout)
+            # microseconds is not working.
+            m2_timeout = SSL.timeout(int(self._timeout))
             sock.set_socket_read_timeout(m2_timeout)
             sock.set_socket_write_timeout(m2_timeout)
         sock.set_post_connection_check_callback(ClientSideChecker())

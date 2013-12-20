@@ -614,6 +614,11 @@ def create_parsers():
     storage_setup_parser.set_defaults(func=setup_storage_node)
     # start storage node
     if os.path.exists(storage_node_config_path):
+        # server account
+        account_parser = server_parsers.add_parser(
+            'account', help='show account information'
+        )
+        account_parser.set_defaults(func=show_account)
         start_server_parser = server_parsers.add_parser(
             'start', help='startup storage node server'
         )
@@ -638,11 +643,6 @@ def create_parsers():
                     signal.SIGTERM
                 )
             shutdown_parser.set_defaults(func=shutdown_storage_node)
-    # server account
-    account_parser = server_parsers.add_parser(
-        'account', help='show account information'
-    )
-    account_parser.set_defaults(func=show_account)
     client_setup_parser = subparsers.add_parser(
         'setup', help='configure client node'
     )
