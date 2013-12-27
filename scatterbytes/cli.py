@@ -304,10 +304,13 @@ def setup_basic(config):
 
 def setup_storage_node(args):
     from .storage.node import StorageNodeConfig
+    config = StorageNodeConfig.get_config()
     if args.make_config:
         config = StorageNodeConfig.get_config()
         print 'created config at %s' % config.config_path
         return
+    else:
+        setup_basic(config)
 
 
 def setup_client_node(args):
@@ -365,7 +368,7 @@ def list_volumes(client_node, args):
     print
     for (name, v) in response['volumes'].items():
         s = '  '
-        if name == 'default':
+        if v['default']:
             s = '* '
         sys.stdout.write(s)
         sys.stdout.write(name.ljust(21))
@@ -668,7 +671,8 @@ def create_parsers():
         'volume_name', type=str, help='volume name'
     )
     create_volume_parser.add_argument(
-        '--mirror-count', type=int, default=3, help='number of mirrors',
+        '--mirror-count', '-m', type=int, default=3,
+        help='number of mirrors',
     )
     create_volume_parser.set_defaults(func=create_volume)
     # delete volume
@@ -687,11 +691,11 @@ def create_parsers():
         'volume_name', type=str, help='volume name'
     )
     update_volume_parser.add_argument(
-        '--set-default', '-d', default=False, type=bool,
-        help='set the default volume'
+        '--set-default', '-d', action='store_true',
+        help='set as default volume'
     )
     update_volume_parser.add_argument(
-        '--rename', '-n', default='', type=str, help='rename the volume'
+        '--rename', '-n', default=None, type=str, help='rename the volume'
     )
     update_volume_parser.set_defaults(func=update_volume)
     # upload file

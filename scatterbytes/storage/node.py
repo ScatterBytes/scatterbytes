@@ -322,19 +322,45 @@ class Task(object):
 
 
 class RegistrationTask(Task):
+    """Register and keep address/port updated.
+
+    After initial registration, status will not be updated.  It takes some time
+    for the server to check the connectivity.  The status will be updated on
+    subsequent registrations.  The status will be updated on subsequent
+    registrations.  The status will be updated on subsequent registrations.
+    The status will be updated on subsequent registrations.
+
+    """
 
     def __init__(self, storage_node, period=60):
         self.storage_node = storage_node
         Task.__init__(self, period)
 
     def run(self):
-        status = self.get_value('status')
-        if status != 'available':
-            proxy = self.storage_node.control_node_proxy
-            config = self.storage_node.config
-            response = register(proxy, config)
-            status = response['status']
-            self.set_value('status', status)
+        proxy = self.storage_node.control_node_proxy
+        config = self.storage_node.config
+        last_status = self.get_value('status')
+        response = register(proxy, config)
+        status = response['status']
+        address = response['address']
+        port = response['port']
+        logger.info('server is connecting to %s:%s' % (address, port))
+        #  *** status for storage nodes ***
+        # available
+        # unavailable - offline due to proper shutdown
+        # unreachable
+        # recovery required
+        # recovery in progress
+        # If recovery is pending, need to inventory and upload chunks.
+        self.set_value('status', status)
+        if last_status and status == 'unreachable':
+            port = config.get('listen_port', section='network')
+            emsg = ('Your storage node cannot be reached on port %(port)s. '
+                    'If you are behind NAT, configure it to send port '
+                    '%(port)s to your server.')
+            logger.error(emsg % dict(port=port))
+        logger.info('last status: %s' % last_status)
+        logger.info('current status: %s' % status)
 
 
 class CheckFileIntegrityTask(Task):
@@ -386,29 +412,18 @@ def register(control_node_proxy, config):
     available_storage = util.get_available_storage(
         config.get('storage_directory')
     )
+    assert available_storage, 'storage check failed'
+    logger.debug('available storage: %s' % available_storage)
     configured_storage = config.get('max_storage')
-    storage = min(available_storage, configured_storage)
+    logger.debug('configured storage: %s' % configured_storage)
+    if not configured_storage:
+        storage = available_storage
+    else:
+        storage = min(available_storage, configured_storage)
     args = [port, PROTOCOL_VERSION, software, storage]
-    logger.info('registering')
+    logger.info('registering with args %s' % args)
     response = control_node_proxy.register_storage_node(*args)
-    status = response['status']
-    profile = response['profile']
-    logger.debug('profile is %s' % profile)
-    # status for storage nodes
-    # inactive
-    # unavailable
-    # available
-    # unreachable
-    # recovery required
-    # recovery in progress
-    # If recovery is pending, need to inventory and upload chunks.
-    if status == 'unavailable':
-        emsg = ('Your storage node cannot be reached on port %(port)s. '
-                'If you are behind NAT, configure it to send port '
-                '%(port)s to your server.')
-        logger.error(emsg % dict(port=port))
-    logger.info('status is: %s' % status)
-    return dict(status=status, profile=profile)
+    return response
 
 
 def unregister(control_node_proxy):

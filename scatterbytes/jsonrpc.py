@@ -419,8 +419,8 @@ class RPCServerProxy(object):
             assert response.status == 200, response.status
             data = response.read()
             (result, error, request_id_ret) = unmarshall_response(data)
-            logger.debug('got result: %s' % str(result))
-            logger.debug('got error: %s' % str(error))
+            logger.debug('result: %s' % str(result))
+            logger.debug('error: %s' % str(error))
             if error:
                 # try to identify the error
                 unwrap_error(error)
