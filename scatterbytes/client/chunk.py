@@ -228,7 +228,7 @@ def combine_chunks(chunks, output_path, decompress=False, encrypt_key=None):
         if encrypt_key.binary_salt:
             salt_length = len(encrypt_key.binary_salt)
         key_length = len(encrypt_key.binary_key)
-    f = open(output_path, 'ab')
+    f = open(output_path, 'wb')
     if decompress:
         decompressor = zlib.decompressobj()
     if encrypt_key:

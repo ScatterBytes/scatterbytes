@@ -17,7 +17,7 @@ from .util import ChunkTransferLog
 from ..errors import DownloadError
 from ..errors import TransferLogError
 from ..compat import OrderedDict
- 
+
 logger = logging.getLogger(__name__)
 
 JOB_ID_LOCK = threading.Lock()
@@ -27,7 +27,7 @@ JOB_ID_COUNTER = itertools.count()
 def gen_job_id():
     with JOB_ID_LOCK:
         return JOB_ID_COUNTER.next()
-            
+
 def get_chunk_path(chunk_dir, chunk_sequence):
     file_name = 'chunk_%s' % str(chunk_sequence).zfill(9)
     chunk_path = os.path.join(chunk_dir, file_name)
@@ -118,11 +118,11 @@ class DownloadLog(ChunkTransferLog):
         except:
             raise TransferLogError('unable to read download log')
         return return_data
-   
+
 
 class DownloadWorkerThread(threading.Thread):
-    
-    def __init__(self, sn_proxy_creator, chunk_job_queue, 
+
+    def __init__(self, sn_proxy_creator, chunk_job_queue,
                  chunk_job_complete_queue, chunk_job_failed_queue):
         threading.Thread.__init__(self)
         self.daemon = True
@@ -191,7 +191,7 @@ class DownloadWorkerThread(threading.Thread):
             )
             raise DownloadError(emsg)
         self.chunk_job_complete_queue.put(job)
-            
+
 
 class SplitChunk(object):
     """Chunk split into segments for downloading.
@@ -211,12 +211,12 @@ class SplitChunk(object):
 
         chunk_dir
             dir to the downloaded chunk to
-        
+
         chunk_info
             information about the chunk given by the control node
 
         """
-        
+
         self.chunk_dir = chunk_dir
         self.chunk_name = chunk_info['chunk_name']
         self.chunk_sequence = chunk_info['chunk_sequence']
@@ -436,7 +436,7 @@ class ThreadedDownloader(object):
     def shutdown_workers(self):
         for worker_thread in self.worker_threads:
             worker_thread.shutdown()
-           
+
     def process_queues(self):
         # completions
         queue = self.chunk_job_complete_queue

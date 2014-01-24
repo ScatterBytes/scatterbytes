@@ -405,22 +405,20 @@ class CheckFileIntegrityTask(Task):
             logger.info('stub - replace corrupt files')
 
 
+def get_mbytes_available(config):
+    storage_dir = config.get('storage_directory')
+    reserve = config.get('reserve_storage')
+    if not reserve:
+        reserve = 0
+    mbytes_avail = util.get_available_storage(storage_dir)
+    mbytes_avail = mbytes_avail - reserve
+    return mbytes_avail
+
+
 def register(control_node_proxy, config):
     port = config.get('listen_port', section='network')
-    software = 'ScatterBytes Python Client %s' % SOFTWARE_VERSION
-    # report the min of what is configured and what is available
-    available_storage = util.get_available_storage(
-        config.get('storage_directory')
-    )
-    assert available_storage, 'storage check failed'
-    logger.debug('available storage: %s' % available_storage)
-    configured_storage = config.get('max_storage')
-    logger.debug('configured storage: %s' % configured_storage)
-    if not configured_storage:
-        storage = available_storage
-    else:
-        storage = min(available_storage, configured_storage)
-    args = [port, PROTOCOL_VERSION, software, storage]
+    user_agent = 'ScatterBytes Python Client %s' % SOFTWARE_VERSION
+    args = [port, PROTOCOL_VERSION, user_agent, get_mbytes_available(config)]
     logger.info('registering with args %s' % args)
     response = control_node_proxy.register_storage_node(*args)
     return response
@@ -430,7 +428,7 @@ def unregister(control_node_proxy):
     logger.info('unregistering')
     response = control_node_proxy.unregister_storage_node()
     status = response['status']
-    # should be inactive
+    # should be unavailable
     logger.info('status is: %s' % status)
     return dict(status=status)
 
@@ -460,6 +458,9 @@ class StorageNode(UserNode):
         self.sending_queue = None
         self.startup_registration_updater = True
         self.startup_sending_queue = True
+
+    def get_mbytes_available(self):
+        return get_mbytes_available(self.config)
 
     def startup(self):
         """Start threads that did not start on init.
@@ -588,15 +589,14 @@ class StorageNode(UserNode):
                 raise ChunkError('data size exceeds %s' % CHUNK_SIZE_MAX)
             # crc32 checksum
             chunk_tmp.verify_checksum()
-            chunk_hash = chunk_tmp.calc_hash(
-                util.b64decode(chunk_hash_salt)
-            )
+            chunk_hash = chunk_tmp.calc_hash(util.b64decode(chunk_hash_salt))
             # move it to its final path before confirming
             shutil.move(chunk_path_tmp, chunk_path)
             logger.debug('stored to %s' % chunk_path)
             logger.debug('checks OK. confirming transfer')
             self.confirm_transfer(
-                transfer_name, chunk_name, chunk_hash
+                transfer_name, chunk_name, chunk_hash,
+                self.get_mbytes_available()
             )
             return 'OK'
         except Exception as e:
@@ -615,7 +615,7 @@ class StorageNode(UserNode):
         try:
             chunk = self._get_chunk(chunk_name)
             os.unlink(chunk.file_path)
-            return 'OK'
+            return {'mbytes_available': self.get_mbytes_available()}
         except ChunkNotFoundError:
             logger.error('did not find chunk %s for deletion' % chunk_name)
             raise
@@ -657,7 +657,8 @@ class StorageNode(UserNode):
             file_reader = f
         return (file_reader, file_size)
 
-    def confirm_transfer(self, transfer_name, chunk_name, chunk_hash):
+    def confirm_transfer(self, transfer_name, chunk_name, chunk_hash,
+                         mbytes_available):
         """Tell the control node the transfer is complete.
 
         If the transfer exists, the control node could confirm it by seeing
@@ -667,7 +668,7 @@ class StorageNode(UserNode):
         """
         logger.debug('confirming transfer %s' % transfer_name)
         f = self.control_node_proxy.confirm_transfer
-        response = f(transfer_name, chunk_name, chunk_hash)
+        response = f(transfer_name, chunk_name, chunk_hash, mbytes_available)
         logger.debug('transfer confirmed')
         return response
 
@@ -711,13 +712,12 @@ class StorageNodeConfig(ConfigBase):
     requests_log_filename = 'storage_node_requests.log'
     search_dirs = ['/etc', ]
 
-    sections = ConfigBase.sections[:] + ['payment']
-
     defaults = ConfigBase.defaults.copy()
     defaults.update({
         'listen_address': ('network', '0.0.0.0', None),
         'listen_port': ('network', 8085, 'int'),
-        'update_check_period': ('main', 3600, 'int'),
+        # reserve 100 MB
+        'reserve_storage': ('main', 100, 'int'),
     })
 
     def __init__(self, config_path, use_config_paths=False):

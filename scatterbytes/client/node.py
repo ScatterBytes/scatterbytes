@@ -358,7 +358,10 @@ class ClientNode(UserNode):
                 time.sleep(5)
 
     def download_file(self, file_name, output_path, volume_name=None,
-                      thread_count=None):
+                      thread_count=None, overwrite_output=False):
+        if os.path.exists(output_path) and not overwrite_output:
+            logger.debug('overwriting %s' % output_path)
+            raise FileExistsError('%s already exists' % output_path)
         cn = self.control_node_proxy
         file_info = cn.get_file_info(volume_name, file_name)
         # keys include, file_id, size, flags, chunk_count, init_ts,
@@ -384,7 +387,7 @@ class ClientNode(UserNode):
             thread_count=thread_count,
             encrypt_passphrase=self.config.encrypt_passphrase,
             output_path=output_path,
-            download_dir=download_dir
+            download_dir=download_dir,
         )
         downloader.download()
         # clean up

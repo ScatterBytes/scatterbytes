@@ -431,8 +431,10 @@ def download_file(client_node, args):
     file_name = args.file_name
     volume_name = args.volume_name
     output_path = args.output_path
+    overwrite_output = args.overwrite_output
     client_node.download_file(
-        file_name, output_path, volume_name=volume_name
+        file_name, output_path, volume_name=volume_name,
+        overwrite_output=overwrite_output
     )
 
 
@@ -733,6 +735,10 @@ def create_parsers():
     )
     download_parser.add_argument(
         'output_path', type=str,
+    )
+    download_parser.add_argument(
+        '--overwrite-output', '-o', action='store_true', default=False,
+        help='overwrite file at output_path if exists'
     )
     download_parser.add_argument(
         '--volume-name', '-v', type=str, default=None,

@@ -39,7 +39,7 @@ class ConfigBase(object):
 
     """
 
-    sections = ['main', 'network', 'notification']
+    sections = ['main', 'network']
 
     if TESTING:
         defaults = {
