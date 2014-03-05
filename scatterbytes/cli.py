@@ -21,6 +21,7 @@ try:
 except ImportError:
     daemon = None
 from argparse import ArgumentParser
+import argcomplete
 from . import errors
 from . import validation
 
@@ -805,5 +806,6 @@ def create_parsers():
 
 def run():
     parser = create_parsers()
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
     args.func(args)

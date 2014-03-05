@@ -92,6 +92,31 @@ def create_default_logging_handler(config):
     return handler
 
 
+def create_error_logging_handler(config):
+    log_filepath = config.log_path
+    dirname = os.path.dirname(log_filepath)
+    filename = os.path.basename(log_filepath)
+    new_filename = filename[:-4] + '_errors' + filename[-4:]
+    error_log_filepath = (os.path.join(dirname, new_filename))
+    error_handler = logging.handlers.RotatingFileHandler(
+        error_log_filepath, maxBytes=10 ** 6, backupCount=10,
+    )
+    error_handler.setLevel(logging.ERROR)
+
+    class ErrorFilter(logging.Filter):
+
+        def filter(self, record):
+            if record.levelno == logging.ERROR:
+                return True
+            return False
+    error_filter = ErrorFilter()
+    error_handler.addFilter(error_filter)
+    fmt = '%(asctime)s: %(levelname)s : %(name)s : %(message)s'
+    formatter = logging.Formatter(fmt)
+    error_handler.setFormatter(formatter)
+    return error_handler
+
+
 class RequestsLogFilter(logging.Filter):
     """filter HTTPS Requests"""
 
@@ -106,7 +131,7 @@ def create_requests_logging_handler(config):
     handler = logging.handlers.RotatingFileHandler(
         log_filepath, maxBytes=10 ** 6, backupCount=10
     )
-    fmt = '%(message)s'
+    fmt = '%(asctime)s: %(message)s'
     formatter = logging.Formatter(fmt)
     handler.setFormatter(formatter)
     handler.addFilter(RequestsLogFilter())
