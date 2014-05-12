@@ -175,7 +175,7 @@ class SendingJob(FamilyThread):
         try:
             self.send_chunk()
         except:
-            logging.error('send failed', exc_info=True)
+            logger.error('send failed', exc_info=True)
 
 
 class SendingQueue(FamilyThread):

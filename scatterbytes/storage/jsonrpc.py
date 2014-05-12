@@ -5,7 +5,6 @@ import time
 import shutil
 import logging
 from ..util import FamilyThread
-from ..util import FamilyThreadMixIn
 from ..util import setup_logging
 from ..util import datetime_from_string
 from .node import StorageNode
@@ -188,13 +187,12 @@ class StorageNodeSSLServer(SSLRPCServer):
             SSLRPCServer.shutdown(self)
 
 
-class ThreadedStorageNodeSSLServer(ThreadedSSLRPCServer, FamilyThreadMixIn):
+class ThreadedStorageNodeSSLServer(ThreadedSSLRPCServer):
     """multi-threaded JSON-RPC Server for a storage node.
 
     """
 
     def __init__(self, storage_node, log_requests=True):
-        self.set_parent()
         self.storage_node = storage_node
         config = storage_node.config
         # for logging requests

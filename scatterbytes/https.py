@@ -11,6 +11,7 @@ import SocketServer
 from M2Crypto import m2
 from M2Crypto import SSL
 from M2Crypto.SSL.Checker import Checker
+from .util import FamilyThread
 from .crypt import Certificate
 from . import __version__ as VERSION
 
@@ -251,7 +252,20 @@ class HTTPSServer(HTTPServer):
             request.close()
 
 
-class ThreadedHTTPServer(SocketServer.ThreadingMixIn, HTTPServer):
+class FamilyThreadingMixIn(SocketServer.ThreadingMixIn):
+    """ThreadingMixIn that adds parent tracking"""
+
+    def process_request(self, request, client_address):
+            """Start a new thread to process the request."""
+            t = FamilyThread(
+                target=self.process_request_thread,
+                args=(request, client_address)
+            )
+            t.daemon = self.daemon_threads
+            t.start()
+
+
+class ThreadedHTTPServer(FamilyThreadingMixIn, HTTPServer):
     """multi-threaded HTTP Server
 
     This is a multi-threaded HTTP server.
@@ -263,7 +277,7 @@ class ThreadedHTTPServer(SocketServer.ThreadingMixIn, HTTPServer):
     pass
 
 
-class ThreadedHTTPSServer(SocketServer.ThreadingMixIn, HTTPSServer):
+class ThreadedHTTPSServer(FamilyThreadingMixIn, HTTPSServer):
     """multi-threaded HTTPS Server
 
     This is a multi-threaded HTTPS server.
