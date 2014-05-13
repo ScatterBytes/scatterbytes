@@ -16,3 +16,6 @@ nosetests.xml
 
 # Vi
 *.swp
+
+# Rope
+.ropeproject
