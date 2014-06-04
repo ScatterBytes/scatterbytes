@@ -205,6 +205,17 @@ class Certificate(object):
             if part.startswith(subject_part):
                 return unicode(part.split('=')[1])
 
+    def check_expire(self):
+        # dates are UTC anyway so remove TZ
+        before = self.cert.get_not_before().get_datetime().replace(tzinfo=None)
+        after = self.cert.get_not_after().get_datetime().replace(tzinfo=None)
+        print before, after
+        now = datetime.datetime.utcnow()
+        if now > after or now < before:
+            emsg = "invalid cert with dates before: %s and after: %s"
+            emsg = emsg % (before, after)
+            raise CertificateError(emsg)
+
     @property
     def O(self):
         return self.get_subject_part('O')

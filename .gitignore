@@ -1,5 +1,8 @@
 *.py[cod]
 
+# Rope
+.ropeproject
+
 # Packages
 *.egg
 *.egg-info
@@ -16,6 +19,3 @@ nosetests.xml
 
 # Vi
 *.swp
-
-# Rope
-.ropeproject

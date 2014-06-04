@@ -4,6 +4,7 @@ import sys
 import time
 import shutil
 import logging
+from ..crypt import Certificate
 from ..util import FamilyThread
 from ..util import setup_logging
 from ..util import datetime_from_string
@@ -300,6 +301,10 @@ def start_server(daemonize=True, config=None):
     if not config.get('node_id'):
         logger.error('missing node_id')
         raise ConfigError('missing node_id')
+    # check for expired certificate and delete it if expired.
+    if os.path.exists(config.cert_path):
+        cert = Certificate(filepath=config.cert_path)
+        cert.check_expire()
     if not os.path.exists(config.cert_path) and \
             not config.get('recert_code'):
         logger.error('missing recert_code')
