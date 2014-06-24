@@ -38,12 +38,15 @@ sb_error_index = {}
 
 INIT_REQUEST_ID = int(time.time() * 10 ** 6)
 
+
 def gen_request_id():
-    return int(time.time() * 10**6) - INIT_REQUEST_ID
+    return int(time.time() * 10 ** 6) - INIT_REQUEST_ID
+
 
 def create_sb_error_index(error_name):
     """base the integer index on the name"""
     return int(hashlib.sha1(error_name).hexdigest()[:8], 16)
+
 
 def index_sb_errors():
     for name in dir(errors):
@@ -68,30 +71,36 @@ class JSONRPCError(StandardError):
         msgs = filter(None, [self.json_message, self.json_data, self.message])
         return ' - '.join(map(repr, msgs))
 
+
 class ParseError(JSONRPCError):
 
     json_code = -32700
     json_message = 'Parse error'
+
 
 class InvalidRequest(JSONRPCError):
 
     json_code = -32600
     json_message = 'Invalid Request'
 
+
 class MethodNotFound(JSONRPCError):
 
     json_code = -32601
     json_message = 'Method not found'
+
 
 class InvalidParams(JSONRPCError):
 
     json_code = -32602
     json_message = 'Invalid params'
 
+
 class InternalError(JSONRPCError):
 
     json_code = -32603
     json_message = 'Internal error'
+
 
 class ServerError(JSONRPCError):
 
@@ -110,24 +119,24 @@ class SBJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, DT):
             return {
-                'data_type' :  'datetime',
-                'value' : datetime_to_string(obj)
+                'data_type':  'datetime',
+                'value': datetime_to_string(obj)
             }
         if isinstance(obj, self.DATE):
             return {
-                'data_type' :  'datetime',
-                'value' : datetime_to_string(obj)
+                'data_type':  'datetime',
+                'value': datetime_to_string(obj)
             }
         if isinstance(obj, decimal.Decimal):
             return {
-                'data_type' :  'decimal',
-                'value' : str(obj)
+                'data_type':  'decimal',
+                'value': str(obj)
             }
         elif isinstance(obj, JSONRPCError):
             return {
-                'code' : obj.json_code,
-                'message' : obj.json_message,
-                'data' : obj.json_data
+                'code': obj.json_code,
+                'message': obj.json_message,
+                'data': obj.json_data
             }
         else:
             return JSONEncoder.encode(self, obj)
@@ -135,6 +144,7 @@ class SBJSONEncoder(json.JSONEncoder):
 # encoder to handle special types
 
 encoder = SBJSONEncoder()
+
 
 def decode_object(d):
     data_type = d.get('data_type', None)
@@ -153,13 +163,14 @@ decoder = JSONDecoder(object_hook=decode_object)
 def marshall_request(request_id, method_name, params):
     """create a jsonrpc request"""
     d = {
-        'jsonrpc' : '2.0',
-        'method' : method_name,
-        'params' : params,
-        'protocol' : PROTOCOL_VERSION,
-        'id' : request_id
+        'jsonrpc': '2.0',
+        'method': method_name,
+        'params': params,
+        'protocol': PROTOCOL_VERSION,
+        'id': request_id
     }
     return encoder.encode(d)
+
 
 def unmarshall_request(m):
     """convert json to method, params, and request_id"""
@@ -170,11 +181,12 @@ def unmarshall_request(m):
     request_id = d['id']
     return (request_id, method_name, params)
 
+
 def marshall_response(request_id, result=None, error=None):
     """create a jsonrpc response"""
     d = {
-        'jsonrpc' : '2.0',
-        'id' : request_id
+        'jsonrpc': '2.0',
+        'id': request_id
     }
     if error:
         d['error'] = error
@@ -186,6 +198,7 @@ def marshall_response(request_id, result=None, error=None):
         logger.debug('failed to marshall %s' % str(d))
         raise
 
+
 def unmarshall_response(m):
     """convert json to method, params, and request_id"""
     d = decoder.decode(m)
@@ -193,6 +206,7 @@ def unmarshall_response(m):
     result = d.get('result')
     error = d.get('error')
     return (result, error, request_id)
+
 
 def wrap_error(e):
     """Wrap an SBError in a JSON Error"""
@@ -204,6 +218,7 @@ def wrap_error(e):
         new_e.json_message = e.message
         return new_e
     return None
+
 
 def unwrap_error(e):
     if e['code'] in sb_error_index:
@@ -232,7 +247,7 @@ class RPCDispatcher(object):
         """
         for (member_name, member) in inspect.getmembers(instance):
             if inspect.ismethod(member) and \
-                                        getattr(member, 'published', False):
+                    getattr(member, 'published', False):
                 self.register_function(member, member_name)
 
     def register_function(self, function, name=None):
@@ -293,7 +308,7 @@ class RPCRequestHandler(BaseHTTPRequestHandler):
             self.report_404()
             return
         # RPC should never need to be more than 1MB
-        max_size = 10**6
+        max_size = 10 ** 6
         content_length = int(self.headers["content-length"])
         logger.debug('content length: %s' % content_length)
         # even if content length > max_size, need to read data from socket
@@ -342,8 +357,9 @@ class RPCRequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         (host, port) = self.client_address[:2]
         address = '%s:%s' % (host, port)
-        msg = "%s - - [%s] %s\n" % (address, self.log_date_time_string(),
-                                    format%args)
+        msg = "%s - - [%s] %s\n" % (
+            address, self.log_date_time_string(), format % args
+        )
         logger.log(19, msg)
 
     def report_404(self):
@@ -364,8 +380,10 @@ class _Method:
     def __init__(self, send, name):
         self.__send = send
         self.__name = name
+
     def __getattr__(self, name):
         return _Method(self.__send, "%s.%s" % (self.__name, name))
+
     def __call__(self, *args):
         return self.__send(self.__name, args)
 
@@ -416,8 +434,15 @@ class RPCServerProxy(object):
                 method='POST', url=self._url_path, body=data
             )
             response = con.getresponse()
-            assert response.status == 200, response.status
             data = response.read()
+            if response.status != 200:
+                emsg = 'HTTP status not 200. '
+                emsg = emsg + 'Response: %s, Data: %s' % (
+                    response.status, data
+                )
+                logger.error(emsg)
+                raise errors.HTTPError(emsg)
+            assert response.status == 200, response.status
             (result, error, request_id_ret) = unmarshall_response(data)
             logger.debug('result: %s' % str(result))
             logger.debug('error: %s' % str(error))
@@ -476,8 +501,9 @@ class ThreadedRPCServer(https.ThreadedHTTPServer, FamilyThreadMixIn):
         self.set_parent()
         self.logRequests = log_requests
         self.dispatcher = dispatcher
-        https.ThreadedHTTPServer.__init__(self, (ip_address, port),
-                                                            request_handler)
+        https.ThreadedHTTPServer.__init__(
+            self, (ip_address, port), request_handler
+        )
 
 
 class ThreadedSSLRPCServer(https.ThreadedHTTPSServer, FamilyThreadMixIn):
@@ -585,7 +611,7 @@ class StorageNodeProxy(RPCServerProxy):
         return response
 
     def retrieve_chunk(self, auth, auth_ts, expire_time, chunk_name,
-                             byte_start=0, byte_end=0):
+                       byte_start=0, byte_end=0):
         url_path = '/sbfile/%s' % chunk_name
         logger.debug('request to %s' % url_path)
         headers = [

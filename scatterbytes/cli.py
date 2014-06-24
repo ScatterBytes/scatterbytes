@@ -208,7 +208,7 @@ def set_encryption_passphrase(config=None, save=True):
     if config is None:
         config = ClientNodeConfig.get_config()
     msg = ('Enter a passphrase for your key. If you leave it blank '
-           'a random 256 bit passphrase will be created for you. '
+           'a random 128 bit passphrase will be created for you. '
            'You will not see output as you type.')
     print textwrap.fill(msg)
     password_set = False
@@ -217,7 +217,7 @@ def set_encryption_passphrase(config=None, save=True):
         if not pass1:
             config.encrypt_passphrase = \
                 crypt.stretch_passphrase(
-                    os.urandom(32), output_format='base64'
+                    os.urandom(16), output_format='base64'
                 )
             print 'Generated a passphrase for you.'
             password_set = True

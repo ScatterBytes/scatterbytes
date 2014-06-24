@@ -12,6 +12,7 @@ import shutil
 import zipfile
 import logging
 import threading
+from .errors import CertificateError
 from .errors import SBError, CertificateRequestError, ConfigError
 from . import crypt
 
@@ -75,6 +76,8 @@ class UserNode(object):
 
         """
 
+        # first, make sure if we have a cert, it is not expired.
+        self.check_certificate_expired()
         ssl_dir = self.config.get('ssl_dir')
         try:
             download_certificates(
@@ -87,15 +90,32 @@ class UserNode(object):
         # make sure we have ours
         self.check_certificate()
 
+    def check_certificate_expired(self):
+        logger.debug('checking for expired cert')
+        if os.path.exists(self.config.cert_path):
+            cert = self.certificate
+            try:
+                cert.check_expire()
+            except CertificateError:
+                logger.warning('certificate expired ... deleting')
+                os.unlink(self.config.cert_path)
+                self.reload_ssl_context()
+
+    def reload_ssl_context(self):
+        """reload ssl context for control node if cert has changed"""
+        if hasattr(self.control_node_proxy, 'reload_ssl_context'):
+            self.control_node_proxy.reload_ssl_context()
+
     def check_certificate(self):
         """Check our certificate and get a new one if needed.
 
         """
+        logger.debug('checking our certificate')
+        self.check_certificate_expired()
         if not os.path.exists(self.config.cert_path):
             self.request_new_certificate()
             # need to reload the ssl context on control node proxy
-            if hasattr(self.control_node_proxy, 'reload_ssl_context'):
-                self.control_node_proxy.reload_ssl_context()
+            self.reload_ssl_context()
 
     def request_new_certificate(self):
         """Obtain an X509 certificate from the control node.

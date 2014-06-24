@@ -31,7 +31,7 @@ CHUNK_SIZE_TGT = int(CHUNK_SIZE_MIN * 1.5)
 
 CIPHER_ENCODE = 0
 CIPHER_DECODE = 1
-CIPHER_MODE = 'aes_256_cfb'
+CIPHER_MODE = 'aes_128_cfb'
 # CFB mode doesn't require padding and shouldn't have leftover data so a call
 # to final should not be needed.  Assertions are in place to check.
 
@@ -90,7 +90,10 @@ def split_file(file_path, chunk_output_dir, compress=True, encrypt_key=None):
             compress with gzip
 
         encrypt_key
-            256 bit key used for AES encryption
+            128 bit key used for AES encryption
+
+        128 bit key recommended by Schneier
+        https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 
         """
 
@@ -105,7 +108,7 @@ def split_file(file_path, chunk_output_dir, compress=True, encrypt_key=None):
             assert isinstance(encrypt_key, AESKey)
             # account for iv
             # size should be same as key
-            iv = os.urandom(32)
+            iv = os.urandom(16)
             assert len(iv) == len(encrypt_key.binary_key)
             encryptor = Cipher(
                 CIPHER_MODE, encrypt_key.binary_key, iv, CIPHER_ENCODE
@@ -227,7 +230,9 @@ def combine_chunks(chunks, output_path, decompress=False, encrypt_key=None):
     if encrypt_key:
         if encrypt_key.binary_salt:
             salt_length = len(encrypt_key.binary_salt)
+            assert salt_length == 16, salt_length
         key_length = len(encrypt_key.binary_key)
+        assert key_length == 16, key_length
     f = open(output_path, 'wb')
     if decompress:
         decompressor = zlib.decompressobj()

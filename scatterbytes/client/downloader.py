@@ -697,8 +697,9 @@ class ThreadedDownloader(object):
         flags = client_util.read_flags(self.file_info['flags'])
         encrypt_key = None
         if self.encrypt_passphrase:
-            # create our key - need the salt, which is first 8 bytes
-            salt = chunks[0].read(byte_range=[0, 8])
+            assert len(self.encrypt_passphrase) == 16
+            # create our key - need the salt, which is first 16 bytes
+            salt = chunks[0].read(byte_range=[0, 16])
             encrypt_key = crypt.AESKey.create_pbkdf2(
                 self.encrypt_passphrase, salt=salt
             )

@@ -19,4 +19,5 @@ def create_client_node(control_node_proxy=None,
         control_node_proxy = ControlNodeProxy(config)
     if storage_node_proxy_creator is None:
         storage_node_proxy_creator = gen_storage_node_proxy_creator(config)
+    logger.debug('client node is configured')
     return ClientNode(control_node_proxy, storage_node_proxy_creator, config)

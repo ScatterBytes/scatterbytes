@@ -19,6 +19,7 @@ from .. import crypt
 from ..config import ConfigBase
 from ..errors import SBError
 from ..errors import FileExistsError
+from ..errors import ChecksumError
 from ..node import UserNode
 from . import chunk as chunklib
 from .downloader import ThreadedDownloader
@@ -29,6 +30,7 @@ from .util import FLAGS
 logger = logging.getLogger(__name__)
 
 Decimal = decimal.Decimal
+
 
 class FileChunkInfo(object):
     """information about a chunked file
@@ -170,7 +172,7 @@ class ClientNode(UserNode):
         """Prepare a file for uploading.
 
         encrypt
-            encrypt using AES-256
+            encrypt using AES-128
 
         compress
             compress using zlib
@@ -191,7 +193,7 @@ class ClientNode(UserNode):
             os.mkdir(uploads_dir)
         chunk_output_dir = os.path.join(uploads_dir, hash)
         chunk_info_path = os.path.join(chunk_output_dir,
-                                                        'file_chunk_info.pkl')
+                                       'file_chunk_info.pkl')
         if os.path.exists(chunk_output_dir):
             # Check to see if file preparation completed.  If so, just return.
             # Otherwise, clear the directory and start over.
@@ -209,7 +211,7 @@ class ClientNode(UserNode):
             'encrypt_key_iterations', section='data_prep'
         )
         if not encrypt_iterations:
-            encrypt_iterations=10000
+            encrypt_iterations = 10000
         if not encrypt:
             encrypt_key = None
         else:
@@ -228,23 +230,24 @@ class ClientNode(UserNode):
         """Resume an incomplete upload.
 
         """
-        chunk_info_path = os.path.join(file_chunks_path,
-                                                        'file_chunk_info.pkl')
-        chunk_info = pickle.load(chunk_info_path)
+        #chunk_info_path = os.path.join(file_chunks_path,
+        #                               'file_chunk_info.pkl')
+        #chunk_info = pickle.load(chunk_info_path)
         upload_options_path = os.path.join(file_chunks_path,
-                                                         'upload_options.pkl')
+                                           'upload_options.pkl')
         upload_options = pickle.load(upload_options_path)
         # If the upload opitions file exists, the upload process has begun.
         volume_name = upload_options['volume_name']
         thread_count = upload_options['thread_count']
         file_name = upload_options['file_name']
-        metadata = upload_options['metadata']
+        #metadata = upload_options['metadata']
         # First, get the incomplete uploads.
         incomplete_chunk_names = UploadLog.read_incomplete(file_chunks_path)
         chunks = chunklib.read_chunk_dir(file_chunks_path)
         for chunk in chunks:
             if chunk.file_name in incomplete_chunk_names:
                 chunk.reuse_transfer = True
+        upload_log = UploadLog(file_chunks_path)
         uploader = ThreadedUploader(self.control_node_proxy,
                                     self.snode_proxy_creator,
                                     volume_name, file_name, chunks,
@@ -316,10 +319,10 @@ class ClientNode(UserNode):
             else:
                 raise e
         upload_options = {
-            'volume_name' : volume_name,
-            'thread_count' : thread_count,
-            'file_name' : file_name,
-            'metadata' : metadata
+            'volume_name': volume_name,
+            'thread_count': thread_count,
+            'file_name': file_name,
+            'metadata': metadata
         }
         f = open(upload_options_path, 'wb')
         pickle.dump(upload_options, f)
@@ -369,7 +372,7 @@ class ClientNode(UserNode):
         # add the file_name and volume_name
         file_info['file_name'] = file_name
         file_info['volume_name'] = volume_name
-        working_dir=self.config.get('working_directory')
+        working_dir = self.config.get('working_directory')
         download_dir = os.path.join(working_dir, 'downloads')
         # see if output_path is a directory.
         if os.path.exists(output_path) and os.path.isdir(output_path):
@@ -401,12 +404,12 @@ class ClientNode(UserNode):
 
         """
 
-        logger.debug('proxy is %s' % storage_node_proxy)
-        f = storage_node_proxy.retrieve_chunk(*snode_args)
+        logger.debug('proxy is %s' % snode_proxy)
+        f = snode_proxy.retrieve_chunk(*snode_args)
         # need to do something if checksum fails
         data = f.read()
         if util.checksum_data(data) != chunk_md5sum:
-            raise MD5ChecksumError
+            raise ChecksumError
         return data
 
 
@@ -423,12 +426,12 @@ class ClientNodeConfig(ConfigBase):
 
     defaults = ConfigBase.defaults.copy()
     defaults.update({
-        'encrypt' : ('data_prep', True, 'boolean'),
-        'encrypt_passphrase' : ('data_prep', '', None),
-        'encrypt_key_iterations' : ('data_prep', 10000, 'int'),
+        'encrypt': ('data_prep', True, 'boolean'),
+        'encrypt_passphrase': ('data_prep', '', None),
+        'encrypt_key_iterations': ('data_prep', 10000, 'int'),
         'compress': ('data_prep', True, 'boolean'),
-        'download_thread_count' : ('transfer', 10, 'int'),
-        'upload_thread_count' : ('transfer', 3, 'int'),
+        'download_thread_count': ('transfer', 10, 'int'),
+        'upload_thread_count': ('transfer', 3, 'int'),
     })
 
     def __init__(self, config_path=None):
@@ -490,10 +493,9 @@ class UploadWorkerThread(threading.Thread):
             transfer_info['chunk_hash_salt'],
         ]
         proxy_args.append(chunk_file)
-        response = proxy.store_chunk(*proxy_args)
+        proxy.store_chunk(*proxy_args)
         logger.debug('completed upload for chunk %s' % chunk.file_name)
         self.completed = True
-
 
     def run(self):
         try:
@@ -501,6 +503,7 @@ class UploadWorkerThread(threading.Thread):
         except Exception as e:
             logger.debug(str(e), exc_info=True)
             raise
+
 
 class UploadLog(ChunkTransferLog):
 
@@ -584,7 +587,7 @@ class ThreadedUploader(threading.Thread):
                 chunk = self.chunks(chunk_sequence_number - 1)
                 logger.debug(emsg % chunk_sequence_number)
                 reuse_transfer = hasattr(chunk, 'reuse_transfer') and \
-                                                    chunk.reuse_transfer
+                    chunk.reuse_transfer
                 cn_response = cn.request_chunk_storage(
                     chunk_sequence_number, reuse_transfer
                 )
@@ -675,7 +678,6 @@ class ThreadedUploader(threading.Thread):
             check_threads()
         return
 
-
     def run(self):
         # Request storage nodes from the control node.
         # max 25 at a time
@@ -691,7 +693,7 @@ class ThreadedUploader(threading.Thread):
                 self.chunks_to_upload.remove(chunk)
 
         while self.chunks_to_upload or self.failed_uploads or \
-                                                self.chunks_to_re_upload:
+                self.chunks_to_re_upload:
             try:
                 self.upload_chunks()
             except Exception as e:
@@ -702,15 +704,16 @@ class ThreadedUploader(threading.Thread):
             output_dir = os.path.dirname(self.chunks[0].file_path)
             shutil.rmtree(output_dir)
 
+
 def format_size(size):
     "convert to printable output using a convenient unit"
-    places_d = Decimal('0.1')
-    if size < 10**6:
+    # places_d = Decimal('0.1')
+    if size < 10 ** 6:
         v = '%s Bytes' % size
-    elif size < 10**6 * 10:
+    elif size < 10 ** 6 * 10:
         d = (size / Decimal('1000.0')).quantize(Decimal('0.1'))
         v = '%s KB' % d
     else:
-        d = (size / Decimal(10**6)).quantize(Decimal('0.1'))
+        d = (size / Decimal(10 ** 6)).quantize(Decimal('0.1'))
         v = '%s MB' % d
     return v

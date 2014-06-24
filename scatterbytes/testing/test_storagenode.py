@@ -48,7 +48,7 @@ def create_salt():
     return (salt, b64_salt)
 
 class ControlNodeMockup(object):
-    
+
     """
 
     storage_node
@@ -78,7 +78,8 @@ class ControlNodeMockup(object):
         cert_path = ssl.create_cert_from_csr(csr_path)
         return dict(certificate=open(cert_path, 'rb').read())
 
-    def confirm_transfer(self, transfer_name, chunk_name, chunk_hash):
+    def confirm_transfer(self, transfer_name, chunk_name, chunk_hash,
+                         mbytes_available):
         xfer = self.transfers[transfer_name]
         chunk = xfer['chunk']
         calc_hash = chunk.calc_hash(util.b64decode(chunk.salt))
@@ -155,7 +156,7 @@ class BaseMixIn(object):
         sn_args.pop(3)
         sn_args.pop(3)
         response = self.storage_node.store_chunk(*sn_args)
-        self.assertEqual(response, 'OK')
+        self.assert_(response, 'OK')
 
     def test_check_hash(self):
         chunk = TEST_CHUNKS[3]
@@ -168,7 +169,7 @@ class BaseMixIn(object):
         cert_info = self.control_node_proxy._cert.info
         response = self.storage_node.check_hash(
             cert_info, chunk_name, b64_salt
-        ) 
+        )
         self.assertEqual(response['chunk_hash'], hash)
 
 
@@ -243,9 +244,9 @@ class BasicTestCase(unittest.TestCase, BaseMixIn):
         # remove serial
         args.pop(2)
         args.pop(2)
-        (f, file_size) = self.storage_node.retrieve_chunk(*args) 
+        (f, file_size) = self.storage_node.retrieve_chunk(*args)
         self.assertEqual(f.read(), byte)
-     
+
     def test_delete_chunk(self):
         chunk = TEST_CHUNKS[3]
         (salt, b64_salt) = create_salt()
@@ -258,7 +259,7 @@ class BasicTestCase(unittest.TestCase, BaseMixIn):
         self.assert_(os.path.exists(chunk_path))
         cert_info = self.control_node_proxy._cert.info
         response = self.storage_node.delete_chunk(cert_info, chunk_name)
-        self.assertEqual(response, 'OK')
+        self.assert_('mbytes_available' in response)
         self.assert_(not os.path.exists(chunk_path))
 
     def tearDown(self):

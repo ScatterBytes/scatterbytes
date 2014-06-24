@@ -24,7 +24,7 @@ class ClientNotFoundError(SBError): pass
 
 class ChecksumError(SBError):
     """error checksumming file
-    
+
     used for disk and transmission related errors
 
     """
@@ -32,9 +32,9 @@ class ChecksumError(SBError):
 
 class SecureHashError(SBError):
     """secure hash check failed
-    
+
     used when comparison against secure hash (SHA-2) fails
-    
+
     """
     pass
 
@@ -71,6 +71,8 @@ class TransferLogError(SBError):
     pass
 
 class AuthenticationError(SBError): pass
+
+class HTTPError(SBError): pass
 
 class CertificateError(SBError): pass
 

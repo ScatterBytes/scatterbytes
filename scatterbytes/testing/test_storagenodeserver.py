@@ -328,7 +328,7 @@ class SingleThreadedTestCase(unittest.TestCase, BaseMixIn):
         self.assert_(os.path.exists(chunk_path))
         sn_proxy = self.make_sn_proxy(ssl_context=self.control_node_ctx)
         response = sn_proxy.delete_chunk(chunk_name)
-        self.assertEqual(response, 'OK')
+        self.assert_('mbytes_available' in response)
         self.assert_(not os.path.exists(chunk_path))
 
     def tearDown(self):

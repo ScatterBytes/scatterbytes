@@ -14,8 +14,10 @@ from ..chunk import Chunk
 from ..errors import DownloadError
 from ..client import util as client_util
 
-ENCRYPT_PASS = 'oxwZ9eJKgsg+qtDiHQWB2+XOfYZ8S39J/PjM6hpuhqs'
+##ENCRYPT_PASS = 'oxwZ9eJKgsg+qtDiHQWB2+XOfYZ8S39J/PjM6hpuhqs'
+ENCRYPT_PASS = os.urandom(16)
 ENCRYPT_KEY = crypt.AESKey.create_pbkdf2(ENCRYPT_PASS)
+assert len(ENCRYPT_KEY.binary_salt) == 16
 
 TEST_FILES = {
     'test_file_1': dict(path=None, size=8 * 10 ** 6)

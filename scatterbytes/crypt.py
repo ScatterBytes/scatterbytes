@@ -120,14 +120,15 @@ def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
 
 # TLS keys and certificates
 
-def stretch_passphrase(passphrase, salt=None, iterations=10000, length=32,
+def stretch_passphrase(passphrase, salt=None, iterations=10000, length=16,
                        output_format='binary'):
     """Stretch a password using pbkdf2
 
     """
 
     if salt is None:
-        salt = os.urandom(8)
+        # 128 bit salt recommended by NIST
+        salt = os.urandom(16)
     output = pbkdf2(passphrase, salt, iterations, length)
     if output_format != 'binary':
         output = util.b64encode(output)
@@ -152,14 +153,17 @@ class AESKey(object):
         return len(self.base64_key)
 
     @classmethod
-    def create_pbkdf2(cls, passphrase, salt='', iterations=10000, keylen=32):
+    def create_pbkdf2(cls, passphrase, salt='', iterations=10000, keylen=16):
         """Create an encryption key for AES using pbkdf2
+
+        Default to 128 bit per Schneier:
+            https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 
         """
 
         if not salt:
-            # 64 bit salt
-            salt = os.urandom(8)
+            # 128 bit salt per NIST
+            salt = os.urandom(16)
         binary_key = stretch_passphrase(passphrase, salt, iterations, keylen)
         return cls(binary_key, salt)
 
@@ -209,7 +213,6 @@ class Certificate(object):
         # dates are UTC anyway so remove TZ
         before = self.cert.get_not_before().get_datetime().replace(tzinfo=None)
         after = self.cert.get_not_after().get_datetime().replace(tzinfo=None)
-        print before, after
         now = datetime.datetime.utcnow()
         if now > after or now < before:
             emsg = "invalid cert with dates before: %s and after: %s"
@@ -455,6 +458,8 @@ def prepare_ssl_output_dir(output_path):
 
 def create_pkey(key_size=2048, output_path=None):
     """Create RSA key pair.
+
+    key_size of 2048 recquired by NIST
 
     """
     pkey = M2Crypto.EVP.PKey()

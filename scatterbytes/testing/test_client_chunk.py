@@ -16,7 +16,7 @@ from ..client.chunk import CHUNK_SIZE_MIN, CHUNK_SIZE_MAX
 
 TEST_FILE_PATH = None
 DATA_DIR = None
-ENC_PASSPHRASE = util.b64encode(os.urandom(10))
+ENC_PASSPHRASE = util.b64encode(os.urandom(16))
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ class BaseTestCase(object):
 
 
 class ExactChunkSizeTestCase(unittest.TestCase, BaseTestCase):
-    
+
     """testing a different file size"""
 
     compress = True
@@ -103,7 +103,7 @@ class EncryptionTestCase(unittest.TestCase, BaseTestCase):
 
     def tearDown(self):
         BaseTestCase.tearDown(self)
-        
+
 
 class SmallDataTestCase(unittest.TestCase, BaseTestCase):
 
@@ -132,7 +132,7 @@ class JustCompressionTestCase(unittest.TestCase, BaseTestCase):
 
 
 ##class SimpleParityTestCase(unittest.TestCase):
-##    
+##
 ##    def setUp(self):
 ##        # need a big file
 ##        self.tmp_file_path = testutil.create_temp_file(
@@ -179,7 +179,7 @@ def test_calc_chunk_sizes():
     max_size = min_size * 2
     tgt_size = int(2**20 * 1.5)
     (range_start, range_end) = (1, 2**20 * 5)
-    # first for some small sizes 
+    # first for some small sizes
     for i in xrange(10000):
         data_size = random.randint(range_start, range_end)
         chunk_sizes = calc_chunk_sizes(data_size, min_size, tgt_size,
