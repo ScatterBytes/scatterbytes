@@ -1,25 +1,24 @@
 import os
 import struct
 import logging
-from . import util
-from . import crypt
 from .crypt import calc_file_hash
 from .crypt import calc_file_crc32
 from .errors import ChecksumError
 from .errors import SecureHashError
 from .errors import ChunkNotFoundError
-from .errors import ChunkError, ChunkChecksumError
+from .errors import ChunkChecksumError
 
 logger = logging.getLogger(__name__)
 
 CHUNK_SIZE_MIN = 10 ** 6
 CHUNK_SIZE_MAX = CHUNK_SIZE_MIN * 2
 
+
 def read_crc32_checksum(f):
     """Read the crc32 checksum appended to the data.
 
     Returns the crc32 checksum as an integer.
-    
+
     """
 
     is_file = isinstance(f, file)
@@ -33,6 +32,7 @@ def read_crc32_checksum(f):
         fl.close()
     return cksum
 
+
 def checksum_chunk(file_path):
     """checksum file using the stored crc32 value
 
@@ -42,7 +42,6 @@ def checksum_chunk(file_path):
 
     """
 
-    ##logger.debug('checksumming %s' % file_path)
     cksum = read_crc32_checksum(file_path)
     cksum_calc = calc_file_crc32(file_path, contains_checksum=True)
     if cksum != cksum_calc:
@@ -51,7 +50,7 @@ def checksum_chunk(file_path):
 
 class Chunk(object):
     """chunk of a file
-    
+
     Data always has crc32 checksum appended.
 
     file_path
@@ -83,10 +82,9 @@ class Chunk(object):
             raise ChunkChecksumError(*e.args)
 
     def verify_hash(self, hash):
-        salt = util.b64decode(hash)[:4]
         logger.debug('checking hash for %s' % self.file_path)
         logger.debug('expected %s' % hash)
-        hash_calc = self.calc_hash(salt)
+        hash_calc = self.calc_hash()
         logger.debug('got      %s' % hash_calc)
         if hash_calc != hash:
             raise SecureHashError
@@ -131,7 +129,7 @@ class Chunk(object):
                 bytes_to_read = total_bytes
                 if byte_range:
                     if byte_range[1] <= byte_range[0]:
-                        raise ValueError, 'invalid byte range'
+                        raise ValueError('invalid byte range')
                     f.seek(byte_range[0])
                     return f.read(byte_range[1] - byte_range[0])
                 # skip the checksum

@@ -174,7 +174,7 @@ def marshall_request(request_id, method_name, params):
 
 def unmarshall_request(m):
     """convert json to method, params, and request_id"""
-    ##logger.debug('unmarshalling request %s' % str(m))
+    # logger.debug('unmarshalling request %s' % str(m))
     d = decoder.decode(m)
     method_name = d['method']
     params = d['params']
@@ -285,7 +285,7 @@ class RPCDispatcher(object):
             return marshall_response(
                 request_id=request_id, error=InternalError()
             )
-            ##logger.error(str(Exception))
+            # logger.error(str(Exception))
             # The default implementation calls sys.exc_info, but calling
             # sys.exc_info causes a delay in the response. I don't know why -
             # maybe something related to threading or M2Crypto or both.
@@ -303,7 +303,7 @@ class RPCRequestHandler(BaseHTTPRequestHandler):
     # No need to use compression - let SSL handle it.
 
     def read_incoming_data(self):
-        #logger.debug('reading data')
+        # logger.debug('reading data')
         if not self.path.startswith('/JSON-RPC'):
             self.report_404()
             return
@@ -577,7 +577,7 @@ class StorageNodeProxy(RPCServerProxy):
         RPCServerProxy.__init__(self, url, ssl_context, source_address)
 
     def store_chunk(self, sig, sig_ts, expire_time, transfer_name,
-                    chunk_name, chunk_hash_salt, chunk_data):
+                    chunk_name, chunk_data):
 
         url_path = '/sbfile/%s' % chunk_name
         logger.debug('storing chunk at %s' % url_path)
@@ -590,7 +590,6 @@ class StorageNodeProxy(RPCServerProxy):
             ('x-sb-sig', sig),
             ('x-sb-sig-ts', util.datetime_to_string(sig_ts)),
             ('x-sb-transfer-name', transfer_name),
-            ('x-sb-hash-salt', chunk_hash_salt),
             ('x-sb-expire-time', util.datetime_to_string(expire_time)),
             ('Content-Type', 'application/octet-stream'),
             ('Content-Length', content_length)

@@ -186,12 +186,12 @@ class ClientNode(UserNode):
         msg = 'compressing: %s, encrypting: %s'
         msg = msg % (compress, encrypt)
         logger.info(msg)
-        hash = crypt.calc_file_hash(file_path, return_type='base32')
+        f_hash = crypt.calc_file_hash(file_path, return_type='base32')
         working_dir = self.config.get('working_directory')
         uploads_dir = os.path.join(working_dir, 'uploads')
         if not os.path.exists(uploads_dir):
             os.mkdir(uploads_dir)
-        chunk_output_dir = os.path.join(uploads_dir, hash)
+        chunk_output_dir = os.path.join(uploads_dir, f_hash)
         chunk_info_path = os.path.join(chunk_output_dir,
                                        'file_chunk_info.pkl')
         if os.path.exists(chunk_output_dir):
@@ -490,7 +490,6 @@ class UploadWorkerThread(threading.Thread):
             transfer_info['expire_time'],
             transfer_info['transfer_name'],
             transfer_info['chunk_name'],
-            transfer_info['chunk_hash_salt'],
         ]
         proxy_args.append(chunk_file)
         proxy.store_chunk(*proxy_args)

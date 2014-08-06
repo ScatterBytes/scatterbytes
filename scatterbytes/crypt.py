@@ -85,23 +85,9 @@ def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
     else:
         fl = open(f, 'rb')
     s = constructor()
-    # A salt is used to prevent identification of files. For example, if one
-    # uploaded the latest Ubuntu CD image, it could not be identified using
-    # the hash because the salted hash would not likely match an existing hash
-    # on the same file.
     if salt:
         s.update(salt)
     size = os.fstat(fl.fileno()).st_size
-    # If this is a very small file, it's plausible that the contents could be
-    # determined by brute force.  To prevent this, make it computationally
-    # prohibitive.  Note that this only matters for the hash created for the
-    # original file.
-    if salt and size < 32:
-        contents = fl.read()
-        for i in xrange(1000):
-            s.update(contents)
-            s.update(salt)
-            s.update(s.digest())
     while fl.tell() < size:
         s.update(fl.read(read_size))
         if salt:
@@ -401,7 +387,7 @@ class SigKey(object):
         key.sign_update(hash)
         s = key.sign_final()
         sig = b64encode(s)
-        ##sig = b64encode(key.sign_final())
+        # sig = b64encode(key.sign_final())
         if isinstance(message, list):
             message.insert(0, sig)
         else:
@@ -423,7 +409,6 @@ class SigKey(object):
         key.verify_init()
         key.verify_update(hash)
         key.verify_final(sig)
-        ##raise AuthenticationError
 
 
 def make_context(ca_cert_path, cert_path, key_path, mode='client'):
@@ -443,9 +428,9 @@ def make_context(ca_cert_path, cert_path, key_path, mode='client'):
     ctx.set_session_id_ctx('ScatterBytes')
     if mode != 'init':
         ctx.load_client_ca(ca_cert_path)
-    #if util.LOG_LEVEL == logging.DEBUG:
-    #    ctx.set_info_callback()
-    #ctx.set_info_callback()
+    # if util.LOG_LEVEL == logging.DEBUG:
+    #     ctx.set_info_callback()
+    # ctx.set_info_callback()
     return ctx
 
 

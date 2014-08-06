@@ -65,8 +65,8 @@ def verify_relay_command(node, args, exclude_sigchecks=None):
     # sig_args[3] == expire_time
     args = list(args)
     cert_info = args[0]
-    #signature = args[1]
-    #signature_ts = args[2]
+    # signature = args[1]
+    # signature_ts = args[2]
     expire_time = args[3]
     # construct signature args which include cert serial numbers
     sig_args = args[1:4]
@@ -156,7 +156,6 @@ class SendingJob(FamilyThread):
         transfer_data = self.transfer_data
         transfer_name = transfer_data['transfer_name']
         chunk_name = transfer_data['chunk_name']
-        chunk_hash_salt = transfer_data['chunk_hash_salt']
         expire_time = transfer_data['expire_time']
         signature = transfer_data['signature']
         signature_ts = transfer_data['signature_ts']
@@ -164,7 +163,7 @@ class SendingJob(FamilyThread):
         chunk_f = open(chunk.file_path, 'rb')
         args = [
             signature, signature_ts, expire_time, transfer_name, chunk_name,
-            chunk_hash_salt, chunk_f
+            chunk_f
         ]
         proxy = self.proxy_creator(transfer_data['uri'])
         msg = 'calling proxy store_chunk with args %s' % str(args)
@@ -449,7 +448,7 @@ class StorageNode(UserNode):
 
     def __init__(self, control_node_proxy, snode_proxy_creator, config=None):
         self.control_node_proxy = control_node_proxy
-        #Fixme - creator just takes uri
+        # Fixme - creator just takes uri
         if snode_proxy_creator is None:
             snode_proxy_creator = StorageNode
         UserNode.__init__(
@@ -482,7 +481,7 @@ class StorageNode(UserNode):
         tasks = []
         if self.startup_registration_updater:
             tasks.append(RegistrationTask(self))
-        ##tasks.append(CheckFileIntegrityTask(self))
+        # #tasks.append(CheckFileIntegrityTask(self))
         self.task_scheduler = TaskScheduler(self.shutdown_event, tasks)
         self.task_scheduler.start()
 
@@ -523,7 +522,7 @@ class StorageNode(UserNode):
         return "%s says: %s" % (cert_info['CN'], msg)
 
     @publish()
-    def send_chunk(self, chunk_name, chunk_hash_salt, dest_uri, transfer_name,
+    def send_chunk(self, chunk_name, dest_uri, transfer_name,
                    priority, signature, signature_ts, expire_time):
         logger.debug('request to send chunk %s' % chunk_name)
         chunk = self._get_chunk(chunk_name)
@@ -534,7 +533,6 @@ class StorageNode(UserNode):
             'expire_time': expire_time,
             'transfer_name': transfer_name,
             'chunk_name': chunk_name,
-            'chunk_hash_salt': chunk_hash_salt,
             'uri': dest_uri,
             'chunk': chunk
         }
@@ -543,8 +541,7 @@ class StorageNode(UserNode):
         return 'OK'
 
     @publish(relay=True, exclude_sigchecks=[4, ])
-    def store_chunk(self, transfer_name, chunk_name, chunk_hash_salt,
-                    chunk_file):
+    def store_chunk(self, transfer_name, chunk_name, chunk_file):
         """Store data chunk from a client or storage node.
 
         transfer_name
@@ -555,9 +552,6 @@ class StorageNode(UserNode):
 
         chunk_name
             Name to use on the filesystem.
-
-        chunk_hash_salt
-            salt to use when calculating the secure hash
 
 
         This can be a storage request from either a client node or another
@@ -589,7 +583,7 @@ class StorageNode(UserNode):
                 raise ChunkError('data size exceeds %s' % CHUNK_SIZE_MAX)
             # crc32 checksum
             chunk_tmp.verify_checksum()
-            chunk_hash = chunk_tmp.calc_hash(util.b64decode(chunk_hash_salt))
+            chunk_hash = chunk_tmp.calc_hash()
             # move it to its final path before confirming
             shutil.move(chunk_path_tmp, chunk_path)
             logger.debug('stored to %s' % chunk_path)
@@ -621,19 +615,22 @@ class StorageNode(UserNode):
             raise
 
     @publish()
-    def check_hash(self, chunk_name, salt):
-        """compute a hash for chunk_name using salt
+    def check_hash(self, chunk_name, salt=None):
+        """compute a hash for chunk
 
         This is the primary means for enforcing the integrity of a storage
         node and also serves to confirm the node is available and functioning
         properly.
 
+        The monitoring node may use a random salt and compare the result to that
+        of other nodes.
+
         """
 
-        if not salt:
-            salt = None
+        if salt is None:
+            salt = chunk_name
         chunk = self._get_chunk(chunk_name)
-        chunk_hash = chunk.calc_hash(salt=util.b64decode(salt))
+        chunk_hash = chunk.calc_hash(salt=chunk_name)
         response = dict(chunk_hash=chunk_hash)
         return response
 
