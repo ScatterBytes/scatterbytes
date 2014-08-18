@@ -13,7 +13,7 @@ import zipfile
 import logging
 import threading
 from .errors import CertificateError
-from .errors import SBError, CertificateRequestError, ConfigError
+from .errors import SBError, CertificateRequestError
 from . import crypt
 
 
