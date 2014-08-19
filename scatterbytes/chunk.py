@@ -19,6 +19,9 @@ def read_crc32_checksum(f):
 
     Returns the crc32 checksum as an integer.
 
+    :param f: file object or path to a file
+    :rtype : integer
+
     """
 
     is_file = isinstance(f, file)
@@ -27,10 +30,10 @@ def read_crc32_checksum(f):
     else:
         fl = open(f, 'rb')
     fl.seek(-4, 2)
-    cksum = struct.unpack('<I', fl.read(4))[0]
+    checksum = struct.unpack('<I', fl.read(4))[0]
     if not is_file:
         fl.close()
-    return cksum
+    return checksum
 
 
 def checksum_chunk(file_path):
@@ -38,7 +41,8 @@ def checksum_chunk(file_path):
 
     Last 4 bytes is a crc32 checksum.
 
-    raises ChunkChecksumError on failure
+    :param file_path: path to file to be checked
+    :raises ChunkChecksumError if checksum fails
 
     """
 
