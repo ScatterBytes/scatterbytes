@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 Welcome to ScatterBytes's |release| Documentation!
-========================================
+==================================================
 
 Contents:
 
@@ -20,5 +20,6 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
+* :ref:`modindex`
 * :ref:`search`
 

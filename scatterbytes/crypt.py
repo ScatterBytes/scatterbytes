@@ -11,8 +11,8 @@ import time
 import datetime
 import M2Crypto
 import M2Crypto.EVP
-from M2Crypto import SSL
-from M2Crypto import X509
+import M2Crypto.SSL
+import M2Crypto.X509
 from M2Crypto.EVP import pbkdf2
 from .errors import CertificateError, CRLError
 from . import util
@@ -25,6 +25,18 @@ M2Crypto.Rand.rand_seed(os.urandom(1024))
 
 
 def calc_file_crc32(f, contains_checksum=False):
+    """calculate the crc32 checksum for a file
+
+    Args:
+        f (file): file to calculate crc32 for
+
+    Kwargs:
+        contains_checksum (bool): f contains checksum in last 4 bytes.
+
+    Returns:
+        checksum as a signed integer
+    """
+
     # number of bytes to read at one time
     read_size = 4096
     is_file = isinstance(f, file)
@@ -52,27 +64,48 @@ def calc_file_crc32(f, contains_checksum=False):
 
 
 def calc_hash(data, salt=None, constructor=hashlib.sha1):
+    """calculate the hash for data
+
+    Params:
+        data (bytes): data to be hashed
+
+    Kwargs:
+        salt (bytes): data used to salt the hash
+        constructor (func): function to create the hash
+
+    Returns:
+        base64 encoded hash
+    """
+
     s = constructor()
     if salt:
         s.update(salt)
     s.update(data)
     if salt:
         s.update(salt)
-    hash = s.digest()
+    hash_ = s.digest()
     if salt:
-        hash = salt + hash
-    return b64encode(hash)
+        hash_ = salt + hash_
+    return b64encode(hash_)
 
 
 def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
                    return_type='base64'):
     """Calculate a hash for a file.
 
-    f may be either a file like object or a file path.
+    Params:
+        f (file): file-like object of path to a file
 
-    return type may be base64, base32, hex, or int
+    Kwargs:
+        salt (bytes): data used to salt the hash
+        constructor (func): function to create the hash
+        return_type (str): format for returned hash value.
+            should be one of base64, base32, hex, or int
 
+    Returns:
+        hash encoded as return_type
     """
+
     # number of bytes to read at one time
     assert return_type in ('base64', 'base32', 'hex')
     if salt:
@@ -98,18 +131,29 @@ def calc_file_hash(f, salt=None, constructor=hashlib.sha1,
         return s.hexdigest()
     elif return_type == 'base32':
         return b32encode(s.digest())
-    hash = s.digest()
+    hash_ = s.digest()
     if salt:
-        hash = salt + hash
-    return b64encode(hash)
+        hash_ = salt + hash_
+    return b64encode(hash_)
 
 
 # TLS keys and certificates
 
 def stretch_passphrase(passphrase, salt=None, iterations=10000, length=16,
                        output_format='binary'):
-    """Stretch a password using pbkdf2
+    """Stretch a passphrase using pbkdf2
 
+    Params:
+        passphrase (str): Passphrase to be stretched.
+
+    Kwargs:
+        salt (bytes): data to salt with
+        iterations (int): iterations to use in pbkdf2
+        length (int): length in bytes of stretched passphrase
+        output_format (str): return format of binary or base64 encoding
+
+    Returns:
+        stretched passphrase encoded as binary or base64
     """
 
     if salt is None:
@@ -121,9 +165,23 @@ def stretch_passphrase(passphrase, salt=None, iterations=10000, length=16,
     return output
 
 
-class AESKey(object):
+class AESKey:
+    """AES key
+
+    Provides convenience in dealing with AES keys.  Aids in creating a key using password stretching and in base64
+    conversion of binary data.
+    """
 
     def __init__(self, binary_key, binary_salt=None):
+        """
+
+        Params:
+            binary_key (bytes): binary key data
+
+        Kwargs:
+            binary_salt (bytes): data used to salt the key
+        """
+
         self.binary_key = binary_key
         self.binary_salt = binary_salt
         if binary_salt:
@@ -140,11 +198,19 @@ class AESKey(object):
 
     @classmethod
     def create_pbkdf2(cls, passphrase, salt='', iterations=10000, keylen=16):
+
         """Create an encryption key for AES using pbkdf2
 
-        Default to 128 bit per Schneier:
-            https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
+        Params:
+            passphrase (bytes): passphrase to stretch into a key
 
+        Kwargs:
+            salt (bytes): data to salt the passphrase. If no salt is provided, a 16 bytes salt will be generated.
+            iterations (int): iterations for pbkdf2 function
+            keylen (int): output key length in bytes
+                Default to 128 bit per Schneier: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
+
+        Returns instance of AESKey
         """
 
         if not salt:
@@ -154,20 +220,63 @@ class AESKey(object):
         return cls(binary_key, salt)
 
 
-class Certificate(object):
-    """wrapper for M2Crypto X509"""
+class PKey:
+    """public and optional private key in RSA key pair
+
+    wraps M2Crypto implementation of EVP.PKey
+
+    """
+
+     def __init__(self, filepath=None, pkey=None, pem_string=None):
+        """
+
+        Use only one of the arguments. Priority is filepath, pkey, then key_text.
+
+        Kwargs:
+            filepath (str): path to the key in PEM format
+            pkey (object): instance to wrap
+            pem_string (str): key as string in PEM format
+        """
+
+        self._filepath = filepath
+        self._pkey = pkey
+        self._pem_string = pem_string
+        assert pkey or filepath or pem_string
+        if filepath:
+            self._pkey = M2Crypto.EVP.load_key(filepath)
+        elif pkey:
+            self._pkey = pkey
+        else:
+            self._pkey = M2Crypto.EVP.load_key_string(pem_string)
+
+
+class Certificate:
+    """X509 Certificate
+
+    This wraps underlying X509 implementation.
+    """
 
     def __init__(self, filepath=None, certificate=None, pem_string=None):
+        """
+
+        Use only one of the arguments. Priority is filepath, certificate, then pem_string.
+
+        Kwargs:
+            filepath (str): path to the X509 certificate
+            certificate (object): instance to wrap
+            pem_string (str): PEM version of the certificate
+
+        """
         self._subject_text = None
         self._filepath = filepath
         self._pem_string = pem_string
         assert certificate or filepath or pem_string
         if filepath:
-            self.cert = X509.load_cert(filepath)
+            self._cert = M2Crypto.X509.load_cert(filepath)
         elif certificate:
-            self.cert = certificate
+            self._cert = certificate
         else:
-            self.cert = X509.load_cert_string(pem_string)
+            self._cert = M2Crypto.X509.load_cert_string(pem_string)
 
     def as_pem(self):
         if self._pem_string:
@@ -176,15 +285,15 @@ class Certificate(object):
             return open(self._filepath).read()
         else:
             logger.warning("can't provide full PEM")
-            return self.cert.as_pem()
+            return self._cert.as_pem()
 
     @property
     def serial_number(self):
-        return self.cert.get_serial_number()
+        return self._cert.get_serial_number()
 
     @property
     def subject(self):
-        return self.cert.get_subject()
+        return self._cert.get_subject()
 
     def get_subject_part(self, subject_part):
         if self._subject_text is None:
@@ -196,9 +305,14 @@ class Certificate(object):
                 return unicode(part.split('=')[1])
 
     def check_expire(self):
+        """Check if certificate has expired and raise CertificateError if it has
+
+        Raises:
+            CertificateError
+        """
         # dates are UTC anyway so remove TZ
-        before = self.cert.get_not_before().get_datetime().replace(tzinfo=None)
-        after = self.cert.get_not_after().get_datetime().replace(tzinfo=None)
+        before = self._cert.get_not_before().get_datetime().replace(tzinfo=None)
+        after = self._cert.get_not_after().get_datetime().replace(tzinfo=None)
         now = datetime.datetime.utcnow()
         if now > after or now < before:
             emsg = "invalid cert with dates before: %s and after: %s"
@@ -219,7 +333,7 @@ class Certificate(object):
 
     @property
     def public_key(self):
-        return self.cert.get_pubkey()
+        return PKey(pkey=self._cert.get_pubkey())
 
     @property
     def info(self):
@@ -231,15 +345,13 @@ class Certificate(object):
         }
 
     def verify(self, pkey):
-        """verify the certificate's signature
-
-        """
-        if not self.cert.verify(pkey):
+        """verify the certificate's signature"""
+        if not self._cert.verify(pkey):
             emsg = 'certificate %s failed validation' % self.subject
             raise CertificateError(emsg)
 
     def __getattr__(self, attname):
-        return getattr(self.cert, attname)
+        return getattr(self._cert, attname)
 
 
 class CRL(object):
@@ -251,7 +363,7 @@ class CRL(object):
 
     def __init__(self, crl_path):
         self._crl_path = crl_path
-        self._crl = X509.load_crl(crl_path)
+        self._crl = M2Crypto.X509.load_crl(crl_path)
         self.serial_numbers = []
         for line in self._crl.as_text().split('\n'):
             line = line.strip()
@@ -262,23 +374,21 @@ class CRL(object):
             elif line.startswith("Serial Number:"):
                 self.serial_numbers.append(line.split()[2])
 
-    def _read_date(self, line):
+    @staticmethod
+    def _read_date(line):
         dt_str = line[12:].strip()
         fmt = "%b %d %H:%M:%S %Y %Z"
         return datetime.datetime.strptime(dt_str, fmt)
 
     def verify(self, sig, cert):
-        """verify CRL with pkey
+        """verify CRL with public key
 
-        sig
-            external signature to work around M2Crypto not verifying CRL sig
-
-        cert
-            M2Crypto.X509.X509 instance - typically the root CA cert
-
-
+        Params:
+            sig (str): external signature to work around M2Crypto not verifying CRL sig
+            cert (Certificate): certificate used to verify - typically the root CA cert
         """
         assert sig
+        assert isinstance(cert, Certificate)
         pkey = cert.get_pubkey()
         pkey.verify_init()
         pkey.verify_update(open(self._crl_path, 'rb').read())
@@ -291,7 +401,7 @@ class CSR(object):
 
     def __init__(self, csr):
         if isinstance(csr, basestring):
-            csr = X509.load_request(csr)
+            csr = M2Crypto.X509.load_request(csr)
         self._csr = csr
 
     @property
@@ -417,6 +527,7 @@ def make_context(ca_cert_path, cert_path, key_path, mode='client'):
     logger.debug('cert_path: %s' % cert_path)
     logger.debug('key_path: %s' % key_path)
     logger.debug('mode: %s' % mode)
+    SSL = M2Crypto.SSL
     ctx = SSL.Context('tlsv1')
     if mode != 'init':
         ctx.load_cert_chain(cert_path, key_path)

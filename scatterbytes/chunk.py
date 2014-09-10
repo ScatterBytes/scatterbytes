@@ -19,8 +19,8 @@ def read_crc32_checksum(f):
 
     Returns the crc32 checksum as an integer.
 
-    :param f: file object or path to a file
-    :rtype : integer
+    :param f: file object or path
+    :rtype: int
 
     """
 
@@ -41,8 +41,9 @@ def checksum_chunk(file_path):
 
     Last 4 bytes is a crc32 checksum.
 
-    :param file_path: path to file to be checked
-    :raises ChunkChecksumError if checksum fails
+    :param str file_path: path to file to be checked
+    :raises ChunkChecksumError: if checksum fails
+    :rtype: None
 
     """
 
