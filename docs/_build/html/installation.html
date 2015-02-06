@@ -1,0 +1,174 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="index.html" />
+    <link rel="prev" title="Intro" href="intro.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>Installation</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="intro.html">Intro</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p><strong>Notice</strong> This is BETA software and is in a testing phase. Do not use it for
+production purposes! Do not depend on it for any reason.  During beta testing,
+only tech savvy users are encouraged to install this software. As the network
+and software matures and it enters production status, user friendly install
+packages will be provided.</p>
+<p>It is recommended to install software with a package manager when available.  For example, on Debian or Ubuntu:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo aptitude install python-m2crypto virtualenvwrapper
+</pre></div>
+</div>
+<p>will satisfy all prerequisites.</p>
+<div class="section" id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li>Python - Python2.6 or Python2.7</li>
+<li>M2Crypto - M2Crypto handles the SSL connections as well as AES file encryption. Use your package manager&#8217;s version if you can.  For example, on Debian: sudo aptitude install python-m2crypto.</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="virtualenv">
+<h2>VirtualEnv<a class="headerlink" href="#virtualenv" title="Permalink to this headline">¶</a></h2>
+<p>virtualenv and virtualenvwrapper are recommended. See <a class="reference external" href="http://www.doughellmann.com/projects/virtualenvwrapper/">http://www.doughellmann.com/projects/virtualenvwrapper/</a> if you&#8217;re not familiar with the software. It creates an isolated environment in which you can install packages.</p>
+</div>
+<div class="section" id="setting-up-a-client-node">
+<h2>Setting Up a Client Node<a class="headerlink" href="#setting-up-a-client-node" title="Permalink to this headline">¶</a></h2>
+<p>A client install is as simple as installing the ScatterBytes package and registering your client.</p>
+<p>Install from PyPI:</p>
+<p>If using virtualenv:</p>
+<div class="highlight-python"><div class="highlight"><pre>pip install scatterbytes
+</pre></div>
+</div>
+<p>During the beta stage, it is important that you keep the software updated.  The command to update is:</p>
+<div class="highlight-python"><div class="highlight"><pre>pip install --upgrade scatterbytes
+</pre></div>
+</div>
+<p>This will provide the libraries and scripts to run either a client node or a storage node.</p>
+<p>ScatterBytes ships with a CLI program called sbnet.  To see what it can do, type:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">sbnet</span> <span class="o">--</span><span class="n">help</span>
+</pre></div>
+</div>
+<p>Register your client.  The first time you do this, an RSA key (for SSL
+communication) and an AES key (for encrypting your files) will be generated. By
+default, they&#8217;re stored along with your configuration file. The location of
+your configuration file is shown when it is created. Please back these up
+somewhere.  If you use the built in file encryption and lose your AES
+encryption key, you will not be able to decrypt your files. If you haven&#8217;t
+registered yet, got to <a class="reference external" href="https://www.scatterbytes.net">https://www.scatterbytes.net</a> and register. Create a
+storage node on the website and obtain the Node ID and Recert Code. Next, run
+the setup and enter those codes (copy and pate is easiest):</p>
+<div class="highlight-python"><div class="highlight"><pre>sbnet setup-client
+</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-a-storage-node">
+<h2>Setting Up a Storage Node<a class="headerlink" href="#setting-up-a-storage-node" title="Permalink to this headline">¶</a></h2>
+<p>A storage node is an https server which runs in the background and listens for connections from both client nodes and the control node. As such, it is important to take precautions to secure the process. The process needs to run reliably and to start automatically should the machine running it reboot.</p>
+<div class="section" id="debian-and-ubuntu">
+<h3>Debian and Ubuntu<a class="headerlink" href="#debian-and-ubuntu" title="Permalink to this headline">¶</a></h3>
+<p>This method starts and runs a storage node as a non-root user.  First, create a new user dedicated to running the storage node:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo adduser sbnode
+</pre></div>
+</div>
+<p>Next, delete the password so the user can&#8217;t log in:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo passwd --delete sbnode
+</pre></div>
+</div>
+<p>While setting things up, switch to that user:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo su - sbnode
+</pre></div>
+</div>
+<p>Assuming you&#8217;ve installed m2crypto and virtualenvwrapper, setup a virtual environment and install ScatterBytes:</p>
+<div class="highlight-python"><div class="highlight"><pre>mkdir .virtualenvs
+mkvirtualenv sb
+</pre></div>
+</div>
+<p>You should now be in the virtual environment, but just to check:</p>
+<div class="highlight-python"><div class="highlight"><pre>deactivate
+workon sb
+</pre></div>
+</div>
+<p>Install ScatterBytes:</p>
+<div class="highlight-python"><div class="highlight"><pre>pip install scatterbytes
+</pre></div>
+</div>
+<p>If you haven&#8217;t registered yet, got to <a class="reference external" href="https://www.scatterbytes.net">https://www.scatterbytes.net</a> and register. Create a storage node on the website and obtain the Node ID and Recert Code. Next, run the setup and enter those codes (copy and pate is easiest):</p>
+<div class="highlight-python"><div class="highlight"><pre>sbnet setup-storage
+</pre></div>
+</div>
+<p>If all goes well, you&#8217;re ready to run your storage node.  Pay attention to where your configuration is stored.  It&#8217;s a good idea to back it up some place safe because it contains your private key and certificate. Finally, setup cron to run your storage node.  If you followed the instructions exactly, your script would be located at ~/.virtualenvs/sb/bin/sbnet.  You&#8217;ll need the location of the sbnet script so if it&#8217;s elsewhere, locate it.  Now, edit your crontab:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">crontab</span> <span class="o">-</span><span class="n">e</span>
+</pre></div>
+</div>
+<p>It should look like this:</p>
+<div class="highlight-python"><div class="highlight"><pre>* * * * * /sbin/start-stop-daemon -S -q -b --name sbnet --startas ~/.virtualenvs/sb/bin/sbnet -- serve
+</pre></div>
+</div>
+<p>Every minute, cron will check to see if the program is running and start it if it isn&#8217;t.</p>
+<p>To shut down the program, edit the crontab again and comment out the line so it looks like this:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="c">#* * * * * /sbin/start-stop-daemon -S -q -b --name sbnet --startas ~/.virtualenvs/sb/bin/sbnet -- serve</span>
+</pre></div>
+</div>
+<p>Then, run a similar command, but use the kill switch:</p>
+<div class="highlight-python"><div class="highlight"><pre>/sbin/start-stop-daemon -K --name sbnet
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="intro.html">Intro</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

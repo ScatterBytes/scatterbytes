@@ -1,0 +1,460 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.config &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.config</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.config</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;common configuration functionality</span>
+
+<span class="sd">Contains the functionality shared by the ClientNodeConfig and</span>
+<span class="sd">StorageNodeConfig.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">ConfigParser</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">ConfigError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="c"># Are we testing?</span>
+
+<span class="n">TESTING</span> <span class="o">=</span> <span class="s">&#39;SB_TESTING&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span>
+
+<span class="c"># Disabled for some testing.</span>
+<span class="n">FSYNC_ON_SAVE</span><span class="o">=</span><span class="bp">True</span>
+
+<span class="c"># Setting this will affect where data and config files are read/written to.</span>
+<span class="c"># This was created for testing.</span>
+<span class="n">DATA_DIRECTORY</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="c"># Proper Unix Directories - If not available, use home directory.</span>
+
+<div class="viewcode-block" id="ConfigBase"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase">[docs]</a><span class="k">class</span> <span class="nc">ConfigBase</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;base class for storage and client node configs</span>
+
+<span class="sd">    config_path</span>
+<span class="sd">        full path to config file</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">sections</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="s">&#39;network&#39;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">TESTING</span><span class="p">:</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;node_id&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+            <span class="s">&#39;control_node_address&#39;</span> <span class="p">:</span> \
+                        <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="s">&#39;controlnode.test.scatterbytes.net&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+            <span class="s">&#39;control_node_port&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">),</span>
+            <span class="s">&#39;debug&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="bp">True</span><span class="p">,</span> <span class="s">&#39;boolean&#39;</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">defaults</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;node_id&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+            <span class="s">&#39;control_node_address&#39;</span> <span class="p">:</span> \
+                        <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="s">&#39;controlnode.scatterbytes.net&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+            <span class="s">&#39;control_node_port&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="mi">8080</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">),</span>
+            <span class="s">&#39;debug&#39;</span> <span class="p">:</span> <span class="p">(</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="s">&#39;boolean&#39;</span><span class="p">),</span>
+        <span class="p">}</span>
+    <span class="c"># check environment variables</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="s">&#39;SB_CONTROLNODE_HOST&#39;</span>
+    <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="n">defaults</span><span class="p">[</span><span class="s">&#39;control_node_address&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">del</span> <span class="n">v</span>
+
+    <span class="n">main_section</span> <span class="o">=</span> <span class="s">&#39;main&#39;</span>
+    <span class="n">cached_config</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="c"># directories to search for configs in</span>
+    <span class="n">search_dirs</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_path</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">use_config_paths</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        config_path</span>
+<span class="sd">            location of the config file</span>
+
+<span class="sd">        use_config_paths</span>
+<span class="sd">            Use this config directory for all path settings instead of</span>
+<span class="sd">            attempting to locate a conventional path.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_config_paths</span> <span class="o">=</span> <span class="n">use_config_paths</span>
+        <span class="k">if</span> <span class="n">config_path</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">config_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_config_dir</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_dir</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="mo">0700</span><span class="p">)</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">SafeConfigParser</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config_path</span> <span class="o">=</span> <span class="n">config_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parser</span> <span class="o">=</span> <span class="n">parser</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">RLock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="c"># set the defaults if need be</span>
+        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sections</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_section</span><span class="p">(</span><span class="n">section</span><span class="p">):</span>
+                <span class="n">parser</span><span class="o">.</span><span class="n">add_section</span><span class="p">(</span><span class="n">section</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">main_section</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setting_defaults</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">df_section</span><span class="p">,</span> <span class="n">df_value</span><span class="p">,</span> <span class="n">df_type</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_option</span><span class="p">(</span><span class="n">df_section</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">df_value</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="n">df_section</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_setting_defaults</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="n">section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">main_section</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_option</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="s">&#39;ssl_dir&#39;</span><span class="p">):</span>
+            <span class="n">ssl_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s">&#39;ssl&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="mo">0700</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">,</span> <span class="n">ssl_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_option</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="s">&#39;log_dir&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_config_paths</span><span class="p">:</span>
+                <span class="n">log_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s">&#39;logs&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">log_dir</span> <span class="o">=</span> <span class="n">find_log_dir</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">log_dir</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">log_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;log_dir&#39;</span><span class="p">,</span> <span class="n">log_dir</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_prep</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">modified</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.mtime"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.mtime">[docs]</a>    <span class="k">def</span> <span class="nf">mtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span><span class="o">.</span><span class="n">st_mtime</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.init_prep"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.init_prep">[docs]</a>    <span class="k">def</span> <span class="nf">init_prep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+    <span class="k">def</span> <span class="nf">_init_prep</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">crypt</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ca_root_cert_path</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Writing Root CA Cert&#39;</span><span class="p">)</span>
+            <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ca_root_cert_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">CA_ROOT_CERT_PEM</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">):</span>
+            <span class="n">crypt</span><span class="o">.</span><span class="n">create_pkey</span><span class="p">(</span><span class="n">output_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Creating RSA Key at </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_prep</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ConfigBase.get_config"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.get_config">[docs]</a>    <span class="k">def</span> <span class="nf">get_config</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">find_config_dir</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">config_dir</span><span class="p">)</span>
+        <span class="n">config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_name</span><span class="p">)</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">cls</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">config</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.read"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.save"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.save">[docs]</a>    <span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">FSYNC_ON_SAVE</span><span class="p">:</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="k">return</span>
+            <span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s">&#39;scatterbytes_&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">fsync</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fileno</span><span class="p">())</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+                <span class="k">raise</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.get"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">main_section</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parser</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_get_&#39;</span> <span class="o">+</span> <span class="n">key</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_get_&#39;</span> <span class="o">+</span> <span class="n">key</span><span class="p">)()</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">2</span><span class="p">]:</span>
+                <span class="n">method_name</span> <span class="o">=</span> <span class="s">&#39;get&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span> <span class="n">method_name</span><span class="p">)(</span><span class="n">section</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">NoOptionError</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="bp">None</span>
+            <span class="k">return</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.set"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.set">[docs]</a>    <span class="k">def</span> <span class="nf">set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">section</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">section</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">main_section</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parser</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_set_&#39;</span> <span class="o">+</span> <span class="n">key</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;_set_&#39;</span> <span class="o">+</span> <span class="n">key</span><span class="p">)(</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">parser</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+
+    <span class="c"># for convenience</span></div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">dd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;data_directory&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dd</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dd</span>
+
+    <span class="nd">@data_directory.setter</span>
+<div class="viewcode-block" id="ConfigBase.data_directory"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.data_directory">[docs]</a>    <span class="k">def</span> <span class="nf">data_directory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="c"># make sure it exists</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">value</span><span class="p">),</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> does not exist&#39;</span> <span class="o">%</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;data_directory&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.log_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.log_path">[docs]</a>    <span class="k">def</span> <span class="nf">log_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;log_dir&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">log_dir</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_filename</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.private_key_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.private_key_path">[docs]</a>    <span class="k">def</span> <span class="nf">private_key_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">key_name</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_key.pem&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">),</span> <span class="n">key_name</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.ca_root_cert_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.ca_root_cert_path">[docs]</a>    <span class="k">def</span> <span class="nf">ca_root_cert_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">),</span> <span class="s">&#39;ca_root_cert.pem&#39;</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.cert_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.cert_path">[docs]</a>    <span class="k">def</span> <span class="nf">cert_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cert_name</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_cert.pem&#39;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">config_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">),</span> <span class="n">cert_name</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.certificate">[docs]</a>    <span class="k">def</span> <span class="nf">certificate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">crypt</span>
+        <span class="k">return</span> <span class="n">crypt</span><span class="o">.</span><span class="n">Certificate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cert_path</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ConfigBase.cert_info"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.cert_info">[docs]</a>    <span class="k">def</span> <span class="nf">cert_info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">certificate</span><span class="o">.</span><span class="n">info</span>
+</div>
+<div class="viewcode-block" id="ConfigBase.make_ssl_context"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.make_ssl_context">[docs]</a>    <span class="k">def</span> <span class="nf">make_ssl_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;create an M2Crypto.SSL.Context&quot;</span>
+        <span class="c"># somewhat of a hack</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span> <span class="o">==</span> <span class="s">&#39;ClientNodeConfig&#39;</span><span class="p">:</span>
+            <span class="n">ctx_type</span> <span class="o">=</span> <span class="s">&#39;client&#39;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ctx_type</span> <span class="o">=</span> <span class="s">&#39;server&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cert_path</span><span class="p">):</span>
+            <span class="n">ctx_type</span> <span class="o">=</span> <span class="s">&#39;init&#39;</span>
+        <span class="c"># delay import to prevent circular import</span>
+        <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">crypt</span>
+        <span class="k">return</span> <span class="n">crypt</span><span class="o">.</span><span class="n">make_context</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ca_root_cert_path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cert_path</span><span class="p">,</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">ctx_type</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ConfigBase.find_config_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.find_config_dir">[docs]</a>    <span class="k">def</span> <span class="nf">find_config_dir</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">find_config_dir</span><span class="p">(</span>
+            <span class="n">search_dirs</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">search_dirs</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="n">cls</span><span class="o">.</span><span class="n">config_name</span>
+        <span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ConfigBase.find_config_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.ConfigBase.find_config_path">[docs]</a>    <span class="k">def</span> <span class="nf">find_config_path</span><span class="p">(</span><span class="n">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cls</span><span class="o">.</span><span class="n">find_config_dir</span><span class="p">(),</span> <span class="n">cls</span><span class="o">.</span><span class="n">config_name</span><span class="p">)</span>
+</div></div>
+<span class="n">CA_ROOT_CERT_PEM</span> <span class="o">=</span> <span class="s">&quot;&quot;&quot;</span>
+<span class="s">-----BEGIN CERTIFICATE-----</span>
+<span class="s">MIIC7TCCAdWgAwIBAgIBATANBgkqhkiG9w0BAQUFADAxMRAwDgYDVQQDEwdSb290</span>
+<span class="s">IENBMR0wGwYDVQQKExRTY2F0dGVyQnl0ZXMgTmV0d29yazAeFw0xMjAxMjAxNTA0</span>
+<span class="s">MTNaFw0zNzAxMTMxNTA0MTNaMDExEDAOBgNVBAMTB1Jvb3QgQ0ExHTAbBgNVBAoT</span>
+<span class="s">FFNjYXR0ZXJCeXRlcyBOZXR3b3JrMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB</span>
+<span class="s">CgKCAQEApb0M5hjLcWAt59KlyIKDrqGelrvzpH4+VW6Zqx2jqGAaMJ4uwupXuRAN</span>
+<span class="s">JBckHDbIZkCoBAC2edUngx8Zmbjud0EoH2nWuibWALrw/FdwYC8TMhSfwF1a7+5N</span>
+<span class="s">go0S7ZUKWemDl4oIDWEGPb0eIBDKujq+gsHFj9T9XEtz+zhgthqGld8SVVl6zIaJ</span>
+<span class="s">J54H7oslTWl23tXw0eir0uJMQqlJK2hBSzlvOBgdwKlrc8B4YJgXOH5jz0+jPuZx</span>
+<span class="s">vaW78wZy0WmzMv5UNg6fbghTsduMuchrBY49cGc4390hFvleoFWpBnr3D0InKqn9</span>
+<span class="s">5pgzX1hxx9OWC6X0F/fWHtK9nfskawIDAQABoxAwDjAMBgNVHRMEBTADAQH/MA0G</span>
+<span class="s">CSqGSIb3DQEBBQUAA4IBAQA1Icz1s2OgQcgXaG2qpFZYUbSjw2lbNn7JfcfiDL2A</span>
+<span class="s">+Y585xXMZXq482LPxkj7MxaOEY3LPIAK1mp6CD/cmbL8ZkAKgUWQnNQreCvI6wnk</span>
+<span class="s">WP3Amg3zYBT1puSL/FT9nF1HQ0lKu8WM6Zw+6EPc+MHw2dE0dZRvzcyvge6aiYhs</span>
+<span class="s">zFYTiqeEKuS8et5+8IFqQ97pH55dX8/xocsGoJuAPO+4JTrT7GdQkBB1tAL3hhbJ</span>
+<span class="s">cOgLVWbW40a9JXVNr+iiIKgP7oWCbpgnfkaWXSOYSOR5zTwbPG8e/wYyi8M1Ujl/</span>
+<span class="s">XIUOqvFRY63WUKL3DfGY+bKPPgBbi4bBxHc3UCFI5kwE</span>
+<span class="s">-----END CERTIFICATE-----</span>
+<span class="s">&quot;&quot;&quot;</span>
+
+<span class="k">if</span> <span class="s">&#39;SB_ROOT_CERT_PATH&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+    <span class="n">CA_ROOT_CERT_PEM</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s">&#39;SB_ROOT_CERT_PATH&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="find_home_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.find_home_dir">[docs]</a><span class="k">def</span> <span class="nf">find_home_dir</span><span class="p">():</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;win&#39;</span><span class="p">):</span>
+        <span class="n">home</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;HOMEPATH&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">home</span><span class="p">:</span>
+            <span class="n">home</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s">&#39;~&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">home</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="s">&#39;~&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">home</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ConfigError</span><span class="p">(</span><span class="s">&quot;can&#39;t find home&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">home</span>
+</div>
+<div class="viewcode-block" id="find_data_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.find_data_dir">[docs]</a><span class="k">def</span> <span class="nf">find_data_dir</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Find the directory to write data to.</span>
+
+<span class="sd">    This is a default which can be overwritten in the config.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">DATA_DIRECTORY</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATA_DIRECTORY</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;DATA_DIRECTORY is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">DATA_DIRECTORY</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DATA_DIRECTORY</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;win&#39;</span><span class="p">):</span>
+        <span class="n">app_data</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;APPDATA&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_data</span><span class="p">:</span>
+            <span class="n">app_data</span> <span class="o">==</span> <span class="n">find_home_dir</span><span class="p">()</span>
+        <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">app_data</span><span class="p">,</span> <span class="s">&#39;ScatterBytes&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_sb_user</span><span class="p">():</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">find_home_dir</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">find_home_dir</span><span class="p">(),</span> <span class="s">&#39;.local&#39;</span><span class="p">,</span> <span class="s">&#39;share&#39;</span><span class="p">,</span> <span class="s">&#39;scatterbytes&#39;</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sb_dir</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ConfigError</span><span class="p">(</span><span class="s">&quot;can&#39;t find application data directory&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sb_dir</span>
+</div>
+<div class="viewcode-block" id="is_sb_user"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.is_sb_user">[docs]</a><span class="k">def</span> <span class="nf">is_sb_user</span><span class="p">():</span>
+    <span class="s">&quot;is this a dedicated scatterbytes user?&quot;</span>
+    <span class="c"># if so, there is no need for a namespace such as .config/scatterbytes</span>
+    <span class="n">home_dir</span> <span class="o">=</span> <span class="n">find_home_dir</span><span class="p">()</span>
+    <span class="n">has_access</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">access</span><span class="p">(</span><span class="n">home_dir</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">W_OK</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">home_dir</span> <span class="ow">and</span> <span class="n">home_dir</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;scatterbytes&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">has_access</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">True</span>
+    <span class="k">return</span> <span class="bp">False</span>
+</div>
+<div class="viewcode-block" id="find_log_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.find_log_dir">[docs]</a><span class="k">def</span> <span class="nf">find_log_dir</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Find the directory to write logs to.</span>
+
+<span class="sd">    This is a default which can be overwritten in the config.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">DATA_DIRECTORY</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATA_DIRECTORY</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;DATA_DIRECTORY is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">DATA_DIRECTORY</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DATA_DIRECTORY</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;win&#39;</span><span class="p">):</span>
+        <span class="n">app_data</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;APPDATA&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_data</span><span class="p">:</span>
+            <span class="n">app_data</span> <span class="o">==</span> <span class="n">find_home_dir</span><span class="p">()</span>
+        <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">app_data</span><span class="p">,</span> <span class="s">&#39;ScatterBytes&#39;</span><span class="p">,</span> <span class="s">&#39;Logs&#39;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_sb_user</span><span class="p">():</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">find_home_dir</span><span class="p">(),</span> <span class="s">&#39;logs&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">find_home_dir</span><span class="p">(),</span> <span class="s">&#39;.cache&#39;</span><span class="p">,</span> <span class="s">&#39;scatterbytes&#39;</span><span class="p">,</span> <span class="s">&#39;logs&#39;</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sb_dir</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ConfigError</span><span class="p">(</span><span class="s">&quot;can&#39;t find log directory&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sb_dir</span>
+</div>
+<div class="viewcode-block" id="find_config_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.config.find_config_dir">[docs]</a><span class="k">def</span> <span class="nf">find_config_dir</span><span class="p">(</span><span class="n">search_dirs</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">config_name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">DATA_DIRECTORY</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">DATA_DIRECTORY</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;DATA_DIRECTORY is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">DATA_DIRECTORY</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DATA_DIRECTORY</span>
+    <span class="k">elif</span> <span class="n">search_dirs</span><span class="p">:</span>
+        <span class="n">sb_dir</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">search_dir</span> <span class="ow">in</span> <span class="n">search_dirs</span><span class="p">:</span>
+            <span class="n">config_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">search_dir</span><span class="p">,</span> <span class="n">config_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">config_path</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">search_dir</span>
+    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;win&#39;</span><span class="p">):</span>
+        <span class="n">app_data</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;APPDATA&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_data</span><span class="p">:</span>
+            <span class="n">app_data</span> <span class="o">==</span> <span class="n">find_home_dir</span><span class="p">()</span>
+        <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">app_data</span><span class="p">,</span> <span class="s">&#39;ScatterBytes&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c"># if name == scatterbytes, no need for namespace</span>
+        <span class="k">if</span> <span class="n">is_sb_user</span><span class="p">():</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">find_home_dir</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">find_home_dir</span><span class="p">(),</span> <span class="s">&#39;.config&#39;</span><span class="p">,</span> <span class="s">&#39;scatterbytes&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sb_dir</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ConfigError</span><span class="p">(</span><span class="s">&quot;can&#39;t find application data directory&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sb_dir</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

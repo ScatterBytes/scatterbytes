@@ -1,0 +1,142 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.errors &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.errors</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.errors</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;error classes used by this package.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="format_exc"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.format_exc">[docs]</a><span class="k">def</span> <span class="nf">format_exc</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">msg</span>
+</div>
+<div class="viewcode-block" id="SBError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.SBError">[docs]</a><span class="k">class</span> <span class="nc">SBError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="SBValueError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.SBValueError">[docs]</a><span class="k">class</span> <span class="nc">SBValueError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="RequestExpiredError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.RequestExpiredError">[docs]</a><span class="k">class</span> <span class="nc">RequestExpiredError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="StaleCommandRelayError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.StaleCommandRelayError">[docs]</a><span class="k">class</span> <span class="nc">StaleCommandRelayError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ConfigError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ConfigError">[docs]</a><span class="k">class</span> <span class="nc">ConfigError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ClientNotFoundError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ClientNotFoundError">[docs]</a><span class="k">class</span> <span class="nc">ClientNotFoundError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ChecksumError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ChecksumError">[docs]</a><span class="k">class</span> <span class="nc">ChecksumError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;error checksumming file</span>
+
+<span class="sd">    used for disk and transmission related errors</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="SecureHashError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.SecureHashError">[docs]</a><span class="k">class</span> <span class="nc">SecureHashError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;secure hash check failed</span>
+
+<span class="sd">    used when comparison against secure hash (SHA-2) fails</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="DuplicateFilenameError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.DuplicateFilenameError">[docs]</a><span class="k">class</span> <span class="nc">DuplicateFilenameError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="FileNotFoundError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.FileNotFoundError">[docs]</a><span class="k">class</span> <span class="nc">FileNotFoundError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="FileExistsError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.FileExistsError">[docs]</a><span class="k">class</span> <span class="nc">FileExistsError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="VolumeNotFoundError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.VolumeNotFoundError">[docs]</a><span class="k">class</span> <span class="nc">VolumeNotFoundError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="OutOfStorageError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.OutOfStorageError">[docs]</a><span class="k">class</span> <span class="nc">OutOfStorageError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="InsufficientStorageError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.InsufficientStorageError">[docs]</a><span class="k">class</span> <span class="nc">InsufficientStorageError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ChunkError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ChunkError">[docs]</a><span class="k">class</span> <span class="nc">ChunkError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;related to file chunks&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ChunkNotFoundError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ChunkNotFoundError">[docs]</a><span class="k">class</span> <span class="nc">ChunkNotFoundError</span><span class="p">(</span><span class="n">ChunkError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="ChunkChecksumError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.ChunkChecksumError">[docs]</a><span class="k">class</span> <span class="nc">ChunkChecksumError</span><span class="p">(</span><span class="n">ChunkError</span><span class="p">,</span> <span class="n">ChecksumError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;checksuming chunk failed&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="DownloadError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.DownloadError">[docs]</a><span class="k">class</span> <span class="nc">DownloadError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="UpdateError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.UpdateError">[docs]</a><span class="k">class</span> <span class="nc">UpdateError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="EncryptionError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.EncryptionError">[docs]</a><span class="k">class</span> <span class="nc">EncryptionError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="TransferLogError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.TransferLogError">[docs]</a><span class="k">class</span> <span class="nc">TransferLogError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;error related to download or upload log&quot;&quot;&quot;</span>
+    <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="AuthenticationError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.AuthenticationError">[docs]</a><span class="k">class</span> <span class="nc">AuthenticationError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="HTTPError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.HTTPError">[docs]</a><span class="k">class</span> <span class="nc">HTTPError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="CertificateError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.CertificateError">[docs]</a><span class="k">class</span> <span class="nc">CertificateError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="CRLError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.CRLError">[docs]</a><span class="k">class</span> <span class="nc">CRLError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="CertificateRequestError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.errors.CertificateRequestError">[docs]</a><span class="k">class</span> <span class="nc">CertificateRequestError</span><span class="p">(</span><span class="n">SBError</span><span class="p">):</span> <span class="k">pass</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

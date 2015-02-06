@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.updates &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.updates</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.updates</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;ScatterBytes Updates.</span>
+
+<span class="sd">This module functions to update the scatterbytes package.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">urllib2</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">crypt</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">UpdateError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<span class="n">UPDATE_URL</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;SB_UPDATE_URL&#39;</span><span class="p">)</span> <span class="ow">or</span> \
+                        <span class="s">&#39;https://controlnode.scatterbytes.net:8080/updates&#39;</span>
+
+
+<span class="c"># local cache</span>
+<span class="n">CACHE</span> <span class="o">=</span> <span class="p">{}</span>
+   
+
+<span class="n">PROGRAM_RE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;sbnet&#39;</span> <span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;^sbnet-(\d+.\d+.\d+)$&#39;</span><span class="p">),</span>
+    <span class="s">&#39;scatterbytes-package&#39;</span> <span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+        <span class="s">r&#39;^scatterbytes-package-(\d+.\d+.\d+).zip$&#39;</span>
+    <span class="p">)</span>
+<span class="p">}</span>
+<span class="n">TS_FORMAT</span> <span class="o">=</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">T%H:%M:%S&#39;</span>
+<span class="n">CHECK_LOG_NAME</span> <span class="o">=</span> <span class="s">&#39;scatterbytes_package_check.txt&#39;</span>
+
+
+<div class="viewcode-block" id="find_home_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.find_home_dir">[docs]</a><span class="k">def</span> <span class="nf">find_home_dir</span><span class="p">(</span><span class="n">use_cache</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">use_cache</span> <span class="ow">and</span> <span class="s">&#39;home_dir&#39;</span> <span class="ow">in</span> <span class="n">CACHE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CACHE</span><span class="p">[</span><span class="s">&#39;home_dir&#39;</span><span class="p">]</span>
+    <span class="n">home</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">find_home_dir</span><span class="p">()</span>
+    <span class="n">CACHE</span><span class="p">[</span><span class="s">&#39;home_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">home</span>
+    <span class="k">return</span> <span class="n">home</span>
+
+</div>
+<div class="viewcode-block" id="find_data_dir"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.find_data_dir">[docs]</a><span class="k">def</span> <span class="nf">find_data_dir</span><span class="p">(</span><span class="n">use_cache</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Find the directory to write package to.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">use_cache</span> <span class="ow">and</span> <span class="s">&#39;data_dir&#39;</span> <span class="ow">in</span> <span class="n">CACHE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">CACHE</span><span class="p">[</span><span class="s">&#39;data_dir&#39;</span><span class="p">]</span>
+    <span class="n">sb_dir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">find_data_dir</span><span class="p">()</span>
+    <span class="c"># Need this directory if it doesn&#39;t exist yet.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sb_dir</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">sb_dir</span><span class="p">)</span>
+    <span class="n">CACHE</span><span class="p">[</span><span class="s">&#39;data_dir&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sb_dir</span>
+    <span class="k">return</span> <span class="n">sb_dir</span>
+
+</div>
+<div class="viewcode-block" id="find_package_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.find_package_path">[docs]</a><span class="k">def</span> <span class="nf">find_package_path</span><span class="p">():</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">find_data_dir</span><span class="p">()</span>
+    <span class="n">package_names</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">PROGRAM_RE</span><span class="p">[</span><span class="s">&#39;scatterbytes-package&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="n">package_names</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">package_names</span><span class="p">:</span>
+        <span class="n">package_names</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">package_name</span> <span class="o">=</span> <span class="n">package_names</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">package_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">package_path</span>
+
+</div>
+<div class="viewcode-block" id="check_update_period"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.check_update_period">[docs]</a><span class="k">def</span> <span class="nf">check_update_period</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Check if an update has been attempted within specified period.&quot;&quot;&quot;</span>
+
+    <span class="n">current_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">find_data_dir</span><span class="p">()</span>
+    <span class="n">check_log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CHECK_LOG_NAME</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">check_log_path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">dt_text</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">check_log_path</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">t_struct</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">dt_text</span><span class="p">,</span> <span class="n">TS_FORMAT</span><span class="p">)</span>
+        <span class="n">t_args</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">t_struct</span><span class="p">[:</span><span class="mi">6</span><span class="p">])</span>
+        <span class="n">dt</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span><span class="o">*</span><span class="n">t_args</span><span class="p">)</span>
+        <span class="n">period</span> <span class="o">=</span> <span class="n">current_time</span> <span class="o">-</span> <span class="n">dt</span>
+        <span class="k">if</span> <span class="n">period</span> <span class="o">&lt;</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="n">minutes</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;check_log failed&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+</div>
+<div class="viewcode-block" id="add_package_to_path"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.add_package_to_path">[docs]</a><span class="k">def</span> <span class="nf">add_package_to_path</span><span class="p">(</span><span class="n">package_path</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">package_path</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">package_path</span> <span class="o">=</span> <span class="n">find_package_path</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">package_path</span><span class="p">,</span> <span class="s">&#39;no package found&#39;</span>
+    <span class="k">if</span> <span class="n">package_path</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">package_path</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="get_installed_sb_version"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.get_installed_sb_version">[docs]</a><span class="k">def</span> <span class="nf">get_installed_sb_version</span><span class="p">():</span>
+    <span class="n">package_path</span> <span class="o">=</span> <span class="n">find_package_path</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">package_path</span><span class="p">:</span>
+        <span class="n">match</span> <span class="o">=</span> <span class="n">PROGRAM_RE</span><span class="p">[</span><span class="s">&#39;scatterbytes-package&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">package_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+            <span class="n">package_version</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">package_version</span>
+
+</div>
+<div class="viewcode-block" id="get_current_program_info"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.get_current_program_info">[docs]</a><span class="k">def</span> <span class="nf">get_current_program_info</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="s">&quot;grab the current package info from the update host&quot;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">UPDATE_URL</span> <span class="o">+</span> <span class="s">&#39;/</span><span class="si">%s</span><span class="s">.txt&#39;</span> <span class="o">%</span> <span class="n">name</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="n">program_text</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="p">(</span><span class="n">pgm_name</span><span class="p">,</span> <span class="n">pgm_hash</span><span class="p">,</span> <span class="n">pgm_sig</span><span class="p">)</span> <span class="o">=</span> <span class="n">program_text</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="n">pgm_version</span> <span class="o">=</span> <span class="n">PROGRAM_RE</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">pgm_name</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pgm_name</span><span class="p">,</span> <span class="n">pgm_version</span><span class="p">,</span> <span class="n">pgm_hash</span><span class="p">,</span> <span class="n">pgm_sig</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="check_cert_signature"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.check_cert_signature">[docs]</a><span class="k">def</span> <span class="nf">check_cert_signature</span><span class="p">(</span><span class="n">cert_pem_string</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;check that a certificate was signed by root cert&quot;&quot;&quot;</span>
+    <span class="n">cert</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">Certificate</span><span class="p">(</span><span class="n">pem_string</span><span class="o">=</span><span class="n">cert_pem_string</span><span class="p">)</span>
+    <span class="n">root_cert</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">Certificate</span><span class="p">(</span><span class="n">pem_string</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">CA_ROOT_CERT_PEM</span><span class="p">)</span>
+    <span class="n">cert</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">root_cert</span><span class="o">.</span><span class="n">public_key</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="get_software_signer_cert"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.get_software_signer_cert">[docs]</a><span class="k">def</span> <span class="nf">get_software_signer_cert</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;get the certificate to check signature on new software&quot;&quot;&quot;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">UPDATE_URL</span> <span class="o">+</span> <span class="s">&#39;/software_signer_cert.pem&#39;</span>
+    <span class="n">cert_pem</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="n">check_cert_signature</span><span class="p">(</span><span class="n">cert_pem</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cert_pem</span>
+
+</div>
+<div class="viewcode-block" id="update_check_log"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.update_check_log">[docs]</a><span class="k">def</span> <span class="nf">update_check_log</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;update log for program updates&quot;&quot;&quot;</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="n">find_data_dir</span><span class="p">()</span>
+    <span class="n">check_log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CHECK_LOG_NAME</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">check_log_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">TS_FORMAT</span><span class="p">))</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="get_updated_program"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.get_updated_program">[docs]</a><span class="k">def</span> <span class="nf">get_updated_program</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">installed_version</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;update scatterbytes packages or sbnet program&quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">hashlib</span>
+    <span class="kn">import</span> <span class="nn">binascii</span>
+    <span class="k">assert</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;scatterbytes-package&#39;</span><span class="p">,</span> <span class="s">&#39;sbnet&#39;</span><span class="p">)</span>
+    <span class="p">(</span><span class="n">pgm_name</span><span class="p">,</span> <span class="n">pgm_version</span><span class="p">,</span> <span class="n">pgm_hash</span><span class="p">,</span> <span class="n">pgm_sig</span><span class="p">)</span> <span class="o">=</span> <span class="n">get_current_program_info</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">update_check_log</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">pgm_version</span> <span class="o">&lt;=</span> <span class="n">installed_version</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">pgm_url</span> <span class="o">=</span> <span class="n">UPDATE_URL</span> <span class="o">+</span> <span class="s">&#39;/&#39;</span> <span class="o">+</span> <span class="n">pgm_name</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">pgm_url</span><span class="p">)</span>
+    <span class="n">pgm_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="c"># check the hash</span>
+    <span class="n">calc_hash</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">pgm_data</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">calc_hash</span> <span class="o">==</span> <span class="n">pgm_hash</span>
+    <span class="c"># check the signature on the hash</span>
+    <span class="n">cert</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">Certificate</span><span class="p">(</span><span class="n">pem_string</span><span class="o">=</span><span class="n">get_software_signer_cert</span><span class="p">())</span>
+    <span class="n">pubkey</span> <span class="o">=</span> <span class="n">cert</span><span class="o">.</span><span class="n">public_key</span>
+    <span class="n">pubkey</span><span class="o">.</span><span class="n">verify_init</span><span class="p">()</span>
+    <span class="n">pubkey</span><span class="o">.</span><span class="n">verify_update</span><span class="p">(</span><span class="n">calc_hash</span><span class="p">)</span>
+    <span class="n">pgm_sig_bin</span> <span class="o">=</span> <span class="n">binascii</span><span class="o">.</span><span class="n">unhexlify</span><span class="p">(</span><span class="n">pgm_sig</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">pubkey</span><span class="o">.</span><span class="n">verify_final</span><span class="p">(</span><span class="n">pgm_sig_bin</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="s">&#39;signature check failed&#39;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">pgm_name</span><span class="p">,</span> <span class="n">pgm_version</span><span class="p">,</span> <span class="n">pgm_data</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="update_package"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.update_package">[docs]</a><span class="k">def</span> <span class="nf">update_package</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">queue</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="c"># update scatterbytes package</span>
+    <span class="c"># return value of 1 means not updated</span>
+    <span class="c"># return value of 2 means updated</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span> <span class="ow">and</span> <span class="n">check_update_period</span><span class="p">():</span>
+        <span class="c"># skip if this was done recently</span>
+        <span class="k">if</span> <span class="n">queue</span><span class="p">:</span>
+            <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ret</span>
+    <span class="c"># scatterbytes package first</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">sb_version</span> <span class="o">=</span> <span class="n">get_installed_sb_version</span><span class="p">()</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">get_updated_program</span><span class="p">(</span><span class="s">&#39;scatterbytes-package&#39;</span><span class="p">,</span> <span class="n">sb_version</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">package_name</span><span class="p">,</span> <span class="n">package_version</span><span class="p">,</span> <span class="n">package_data</span><span class="p">)</span> <span class="o">=</span> <span class="n">response</span>
+            <span class="c"># checks passed - save the program</span>
+            <span class="n">sb_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">find_data_dir</span><span class="p">(),</span> <span class="n">package_name</span><span class="p">)</span>
+            <span class="nb">open</span><span class="p">(</span><span class="n">sb_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">package_data</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got new package version </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">package_version</span><span class="p">)</span>
+            <span class="c"># test it</span>
+            <span class="n">add_package_to_path</span><span class="p">(</span><span class="n">sb_path</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">reload_package</span><span class="p">()</span>
+                <span class="kn">import</span> <span class="nn">scatterbytes.cli</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;reloaded </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">scatterbytes</span><span class="o">.</span><span class="n">cli</span><span class="p">)</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;new package failed - removing&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">sb_path</span><span class="p">)</span>
+                <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">sb_path</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ret</span> <span class="o">=</span> <span class="mi">2</span>
+                <span class="k">if</span> <span class="n">queue</span><span class="p">:</span>
+                    <span class="n">queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">ret</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">ret</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;error updating package&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="update_all"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.update_all">[docs]</a><span class="k">def</span> <span class="nf">update_all</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="c"># for now, just update the package</span>
+    <span class="c"># running in another process so modules don&#39;t get loaded in this namespace</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;updating package&#39;</span><span class="p">)</span>
+    <span class="kn">import</span> <span class="nn">Queue</span>
+    <span class="kn">import</span> <span class="nn">multiprocessing</span>
+    <span class="n">queue</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">update_package</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">force</span><span class="p">,</span> <span class="n">queue</span><span class="p">))</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+    <span class="n">p</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">UpdateError</span><span class="p">(</span><span class="s">&#39;Update failed! Check log for details.&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;updating finished&#39;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="reload_package"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.updates.reload_package">[docs]</a><span class="k">def</span> <span class="nf">reload_package</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;reload the scatterbytes package</span>
+<span class="sd">    </span>
+<span class="sd">    This is intended to be used after inserting a new package in sys.path.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">reload_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;scatterbytes&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">m</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">reload_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+    <span class="c"># top must reload first</span>
+    <span class="n">reload_list</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">reload_list</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;reloading </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">m</span><span class="p">)</span>
+        <span class="nb">reload</span><span class="p">(</span><span class="n">m</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

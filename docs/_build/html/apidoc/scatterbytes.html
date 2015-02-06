@@ -1,0 +1,1940 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes package &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes package</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="scatterbytes-package">
+<h1>scatterbytes package<a class="headerlink" href="#scatterbytes-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="scatterbytes.client.html">scatterbytes.client package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client.chunk">scatterbytes.client.chunk module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client.downloader">scatterbytes.client.downloader module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client.jsonrpc">scatterbytes.client.jsonrpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client.node">scatterbytes.client.node module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client.util">scatterbytes.client.util module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.client.html#module-scatterbytes.client">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scatterbytes.compat.html">scatterbytes.compat package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.compat.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.compat.html#scatterbytes-compat-ordereddict-module">scatterbytes.compat.ordereddict module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.compat.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="scatterbytes.storage.html">scatterbytes.storage package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.storage.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.storage.html#module-scatterbytes.storage.jsonrpc">scatterbytes.storage.jsonrpc module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.storage.html#module-scatterbytes.storage.node">scatterbytes.storage.node module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="scatterbytes.storage.html#module-scatterbytes.storage">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-scatterbytes.chunk">
+<span id="scatterbytes-chunk-module"></span><h2>scatterbytes.chunk module<a class="headerlink" href="#module-scatterbytes.chunk" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="scatterbytes.chunk.Chunk">
+<em class="property">class </em><tt class="descclassname">scatterbytes.chunk.</tt><tt class="descname">Chunk</tt><big>(</big><em>file_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>chunk of a file</p>
+<p>Data always has crc32 checksum appended.</p>
+<dl class="docutils">
+<dt>file_path</dt>
+<dd>full filesystem path to the chunk</dd>
+<dt>file_name</dt>
+<dd>local name for the chunk</dd>
+<dt>size</dt>
+<dd>size of the chunk on the filesystem</dd>
+</dl>
+<dl class="method">
+<dt id="scatterbytes.chunk.Chunk.calc_hash">
+<tt class="descname">calc_hash</tt><big>(</big><em>salt=None</em>, <em>return_type='base64'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.calc_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.calc_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the hash for the chunk</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.chunk.Chunk.chunk_size">
+<tt class="descname">chunk_size</tt><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.chunk_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.chunk_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#8220;size of the chunk, which must be at least CHUNK_SIZE_MIN</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.chunk.Chunk.crc32_checksum">
+<tt class="descname">crc32_checksum</tt><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.crc32_checksum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.crc32_checksum" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.chunk.Chunk.file_name">
+<tt class="descname">file_name</tt><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.file_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.file_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.chunk.Chunk.read">
+<tt class="descname">read</tt><big>(</big><em>raw=False</em>, <em>byte_range=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>read data excluding the checksum</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.chunk.Chunk.size">
+<tt class="descname">size</tt><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>size including checksum if present</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.chunk.Chunk.verify_checksum">
+<tt class="descname">verify_checksum</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.verify_checksum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.verify_checksum" title="Permalink to this definition">¶</a></dt>
+<dd><p>perform a crc32 checksum</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.chunk.Chunk.verify_hash">
+<tt class="descname">verify_hash</tt><big>(</big><em>hash</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#Chunk.verify_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.Chunk.verify_hash" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.chunk.checksum_chunk">
+<tt class="descclassname">scatterbytes.chunk.</tt><tt class="descname">checksum_chunk</tt><big>(</big><em>file_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#checksum_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.checksum_chunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>checksum file using the stored crc32 value</p>
+<p>Last 4 bytes is a crc32 checksum.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>file_path</strong> (<em>str</em>) &#8211; path to file to be checked</td>
+</tr>
+<tr class="field-even field"><th class="field-name" colspan="2">Raises ChunkChecksumError:</th></tr>
+<tr class="field-even field"><td>&nbsp;</td><td class="field-body">if checksum fails</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.chunk.read_crc32_checksum">
+<tt class="descclassname">scatterbytes.chunk.</tt><tt class="descname">read_crc32_checksum</tt><big>(</big><em>f</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/chunk.html#read_crc32_checksum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.chunk.read_crc32_checksum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read the crc32 checksum appended to the data.</p>
+<p>Returns the crc32 checksum as an integer.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>f</strong> &#8211; file object or path</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">int</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.cli">
+<span id="scatterbytes-cli-module"></span><h2>scatterbytes.cli module<a class="headerlink" href="#module-scatterbytes.cli" title="Permalink to this headline">¶</a></h2>
+<p>Command Line Interface functionality</p>
+<dl class="class">
+<dt id="scatterbytes.cli.PrettyProxy">
+<em class="property">class </em><tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">PrettyProxy</tt><big>(</big><em>proxy</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#PrettyProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.PrettyProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>wrapper with nicer output</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.check_yesno">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">check_yesno</tt><big>(</big><em>response</em>, <em>default='yes'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#check_yesno"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.check_yesno" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.create_client_node">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">create_client_node</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#create_client_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.create_client_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.create_parsers">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">create_parsers</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#create_parsers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.create_parsers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.create_storage_node">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">create_storage_node</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#create_storage_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.create_storage_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.create_volume">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">create_volume</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#create_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.create_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.delete_file">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">delete_file</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#delete_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.delete_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.delete_volume">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">delete_volume</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#delete_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.delete_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.download_file">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">download_file</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#download_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.download_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.find_files">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">find_files</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#find_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.find_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.get_daemon_pid">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">get_daemon_pid</tt><big>(</big><em>storage_node_config_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#get_daemon_pid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.get_daemon_pid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.input_yesno">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">input_yesno</tt><big>(</big><em>msg</em>, <em>default='yes'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#input_yesno"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.input_yesno" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.list_files">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">list_files</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#list_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.list_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.list_volumes">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">list_volumes</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#list_volumes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.list_volumes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.match_type">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">match_type</tt><big>(</big><em>v</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#match_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.match_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>guess at type and coerce</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.print_file_results">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">print_file_results</tt><big>(</big><em>file_results</em>, <em>long_format</em>, <em>with_metadata</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#print_file_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.print_file_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.prompt_register">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">prompt_register</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#prompt_register"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.prompt_register" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.proxy_cmd">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">proxy_cmd</tt><big>(</big><em>f</em>, <em>mode='client'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#proxy_cmd"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.proxy_cmd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.run">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.set_encryption_passphrase">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">set_encryption_passphrase</tt><big>(</big><em>config=None</em>, <em>save=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#set_encryption_passphrase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.set_encryption_passphrase" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.setup">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">setup</tt><big>(</big><em>config_class</em>, <em>node_factory</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#setup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.setup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.setup_basic">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">setup_basic</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#setup_basic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.setup_basic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.setup_client_node">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">setup_client_node</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#setup_client_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.setup_client_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.setup_storage_node">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">setup_storage_node</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#setup_storage_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.setup_storage_node" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.show_account">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">show_account</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#show_account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.show_account" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.start_server">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">start_server</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#start_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.start_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.update_file">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">update_file</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#update_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.update_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.update_volume">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">update_volume</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#update_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.update_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.cli.upload_file">
+<tt class="descclassname">scatterbytes.cli.</tt><tt class="descname">upload_file</tt><big>(</big><em>args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/cli.html#upload_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.cli.upload_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.config">
+<span id="scatterbytes-config-module"></span><h2>scatterbytes.config module<a class="headerlink" href="#module-scatterbytes.config" title="Permalink to this headline">¶</a></h2>
+<p>common configuration functionality</p>
+<p>Contains the functionality shared by the ClientNodeConfig and
+StorageNodeConfig.</p>
+<dl class="class">
+<dt id="scatterbytes.config.ConfigBase">
+<em class="property">class </em><tt class="descclassname">scatterbytes.config.</tt><tt class="descname">ConfigBase</tt><big>(</big><em>config_path=None</em>, <em>use_config_paths=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>base class for storage and client node configs</p>
+<dl class="docutils">
+<dt>config_path</dt>
+<dd>full path to config file</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.ca_root_cert_path">
+<tt class="descname">ca_root_cert_path</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.ca_root_cert_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.ca_root_cert_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.cached_config">
+<tt class="descname">cached_config</tt><em class="property"> = None</em><a class="headerlink" href="#scatterbytes.config.ConfigBase.cached_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.cert_info">
+<tt class="descname">cert_info</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.cert_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.cert_info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.cert_path">
+<tt class="descname">cert_path</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.cert_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.cert_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.certificate">
+<tt class="descname">certificate</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.certificate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.data_directory">
+<tt class="descname">data_directory</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.data_directory"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.data_directory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.defaults">
+<tt class="descname">defaults</tt><em class="property"> = {'debug': ('main', True, 'boolean'), 'control_node_port': ('network', 8080, 'int'), 'node_id': ('main', '', None), 'control_node_address': ('network', 'controlnode.test.scatterbytes.net', None)}</em><a class="headerlink" href="#scatterbytes.config.ConfigBase.defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.config.ConfigBase.find_config_dir">
+<em class="property">classmethod </em><tt class="descname">find_config_dir</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.find_config_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.find_config_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.config.ConfigBase.find_config_path">
+<em class="property">classmethod </em><tt class="descname">find_config_path</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.find_config_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.find_config_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.get">
+<tt class="descname">get</tt><big>(</big><em>key</em>, <em>raw=False</em>, <em>section=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.config.ConfigBase.get_config">
+<em class="property">classmethod </em><tt class="descname">get_config</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.get_config"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.get_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.init_prep">
+<tt class="descname">init_prep</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.init_prep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.init_prep" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.log_path">
+<tt class="descname">log_path</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.log_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.log_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.main_section">
+<tt class="descname">main_section</tt><em class="property"> = 'main'</em><a class="headerlink" href="#scatterbytes.config.ConfigBase.main_section" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.make_ssl_context">
+<tt class="descname">make_ssl_context</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.make_ssl_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.make_ssl_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>create an M2Crypto.SSL.Context</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.mtime">
+<tt class="descname">mtime</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.mtime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.mtime" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.private_key_path">
+<tt class="descname">private_key_path</tt><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.private_key_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.private_key_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.read">
+<tt class="descname">read</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.save">
+<tt class="descname">save</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.save"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.search_dirs">
+<tt class="descname">search_dirs</tt><em class="property"> = None</em><a class="headerlink" href="#scatterbytes.config.ConfigBase.search_dirs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.config.ConfigBase.sections">
+<tt class="descname">sections</tt><em class="property"> = ['main', 'network']</em><a class="headerlink" href="#scatterbytes.config.ConfigBase.sections" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.config.ConfigBase.set">
+<tt class="descname">set</tt><big>(</big><em>key</em>, <em>value</em>, <em>section=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#ConfigBase.set"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.ConfigBase.set" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.config.find_config_dir">
+<tt class="descclassname">scatterbytes.config.</tt><tt class="descname">find_config_dir</tt><big>(</big><em>search_dirs=None</em>, <em>config_name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#find_config_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.find_config_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.config.find_data_dir">
+<tt class="descclassname">scatterbytes.config.</tt><tt class="descname">find_data_dir</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#find_data_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.find_data_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the directory to write data to.</p>
+<p>This is a default which can be overwritten in the config.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.config.find_home_dir">
+<tt class="descclassname">scatterbytes.config.</tt><tt class="descname">find_home_dir</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#find_home_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.find_home_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.config.find_log_dir">
+<tt class="descclassname">scatterbytes.config.</tt><tt class="descname">find_log_dir</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#find_log_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.find_log_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the directory to write logs to.</p>
+<p>This is a default which can be overwritten in the config.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.config.is_sb_user">
+<tt class="descclassname">scatterbytes.config.</tt><tt class="descname">is_sb_user</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/config.html#is_sb_user"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.config.is_sb_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>is this a dedicated scatterbytes user?</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.crypt">
+<span id="scatterbytes-crypt-module"></span><h2>scatterbytes.crypt module<a class="headerlink" href="#module-scatterbytes.crypt" title="Permalink to this headline">¶</a></h2>
+<p>cryptography and hashing</p>
+<dl class="class">
+<dt id="scatterbytes.crypt.AESKey">
+<em class="property">class </em><tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">AESKey</tt><big>(</big><em>binary_key</em>, <em>binary_salt=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#AESKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.AESKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>AES key</p>
+<p>Provides convenience in dealing with AES keys.  Aids in creating a key using password stretching and in base64
+conversion of binary data.</p>
+<dl class="classmethod">
+<dt id="scatterbytes.crypt.AESKey.create_pbkdf2">
+<em class="property">classmethod </em><tt class="descname">create_pbkdf2</tt><big>(</big><em>passphrase</em>, <em>salt=''</em>, <em>iterations=10000</em>, <em>keylen=16</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#AESKey.create_pbkdf2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.AESKey.create_pbkdf2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an encryption key for AES using pbkdf2</p>
+<dl class="docutils">
+<dt>Params:</dt>
+<dd>passphrase (bytes): passphrase to stretch into a key</dd>
+<dt>Kwargs:</dt>
+<dd><p class="first">salt (bytes): data to salt the passphrase
+iterations (int): iterations for pbkdf2 function
+keylen (int): output key length in bytes</p>
+<blockquote class="last">
+<div>Default to 128 bit per Schneier: <a class="reference external" href="https://www.schneier.com/blog/archives/2009/07/another_new_aes.html">https://www.schneier.com/blog/archives/2009/07/another_new_aes.html</a></div></blockquote>
+</dd>
+</dl>
+<p>Returns <a class="reference internal" href="#scatterbytes.crypt.AESKey" title="scatterbytes.crypt.AESKey"><tt class="xref py py-class docutils literal"><span class="pre">AESKey</span></tt></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.crypt.CRL">
+<em class="property">class </em><tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">CRL</tt><big>(</big><em>crl_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CRL"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CRL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>wrapper for M2Crypto.X509.CRL</p>
+<p>adds ability to read details and check signature</p>
+<dl class="method">
+<dt id="scatterbytes.crypt.CRL.verify">
+<tt class="descname">verify</tt><big>(</big><em>sig</em>, <em>cert</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CRL.verify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CRL.verify" title="Permalink to this definition">¶</a></dt>
+<dd><p>verify CRL with pkey</p>
+<dl class="docutils">
+<dt>sig</dt>
+<dd>external signature to work around M2Crypto not verifying CRL sig</dd>
+<dt>cert</dt>
+<dd>M2Crypto.X509.X509 instance - typically the root CA cert</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.crypt.CSR">
+<em class="property">class </em><tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">CSR</tt><big>(</big><em>csr</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>wrapper for M2Crypto CSR</p>
+<dl class="attribute">
+<dt id="scatterbytes.crypt.CSR.CN">
+<tt class="descname">CN</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.CN"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.CN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.CSR.O">
+<tt class="descname">O</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.O"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.O" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.CSR.OU">
+<tt class="descname">OU</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.OU"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.OU" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.CSR.get_subject_part">
+<tt class="descname">get_subject_part</tt><big>(</big><em>subject_part</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.get_subject_part"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.get_subject_part" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.CSR.public_key">
+<tt class="descname">public_key</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.public_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.public_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.CSR.subject">
+<tt class="descname">subject</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#CSR.subject"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.CSR.subject" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.crypt.Certificate">
+<em class="property">class </em><tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">Certificate</tt><big>(</big><em>filepath=None</em>, <em>certificate=None</em>, <em>pem_string=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>wrapper for M2Crypto X509</p>
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.CN">
+<tt class="descname">CN</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.CN"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.CN" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.O">
+<tt class="descname">O</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.O"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.O" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.OU">
+<tt class="descname">OU</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.OU"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.OU" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.Certificate.as_pem">
+<tt class="descname">as_pem</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.as_pem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.as_pem" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.Certificate.check_expire">
+<tt class="descname">check_expire</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.check_expire"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.check_expire" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.Certificate.get_subject_part">
+<tt class="descname">get_subject_part</tt><big>(</big><em>subject_part</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.get_subject_part"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.get_subject_part" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.info">
+<tt class="descname">info</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.public_key">
+<tt class="descname">public_key</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.public_key"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.public_key" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.serial_number">
+<tt class="descname">serial_number</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.serial_number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.serial_number" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.crypt.Certificate.subject">
+<tt class="descname">subject</tt><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.subject"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.subject" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.Certificate.verify">
+<tt class="descname">verify</tt><big>(</big><em>pkey</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#Certificate.verify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.Certificate.verify" title="Permalink to this definition">¶</a></dt>
+<dd><p>verify the certificate&#8217;s signature</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.crypt.SigKey">
+<em class="property">class </em><tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">SigKey</tt><big>(</big><em>pkey</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#SigKey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.SigKey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>key to sign messages and/or check signatures</p>
+<dl class="method">
+<dt id="scatterbytes.crypt.SigKey.sign">
+<tt class="descname">sign</tt><big>(</big><em>message</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#SigKey.sign"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.SigKey.sign" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.crypt.SigKey.verify">
+<tt class="descname">verify</tt><big>(</big><em>message</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#SigKey.verify"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.SigKey.verify" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.calc_file_crc32">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">calc_file_crc32</tt><big>(</big><em>f</em>, <em>contains_checksum=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#calc_file_crc32"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.calc_file_crc32" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the crc32 checksum for a file</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd>f (file): file to calculate crc32 for</dd>
+<dt>Kwargs:</dt>
+<dd>contains_checksum (bool): f contains checksum in last 4 bytes.</dd>
+<dt>Returns:</dt>
+<dd>checksum as a signed integer</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.calc_file_hash">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">calc_file_hash</tt><big>(</big><em>f</em>, <em>salt=None</em>, <em>constructor=&lt;built-in function openssl_sha1&gt;</em>, <em>return_type='base64'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#calc_file_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.calc_file_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate a hash for a file.</p>
+<dl class="docutils">
+<dt>Params:</dt>
+<dd>f (file): file-like object of path to a file</dd>
+<dt>Kwargs:</dt>
+<dd><p class="first">salt (bytes): data used to salt the hash
+constructor (func): function to create the hash
+return_type (str): format for returned hash value.</p>
+<blockquote class="last">
+<div>should be one of base64, base32, hex, or int</div></blockquote>
+</dd>
+<dt>Returns:</dt>
+<dd>hash encoded as return_type</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.calc_hash">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">calc_hash</tt><big>(</big><em>data</em>, <em>salt=None</em>, <em>constructor=&lt;built-in function openssl_sha1&gt;</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#calc_hash"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.calc_hash" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the hash for data</p>
+<dl class="docutils">
+<dt>Params:</dt>
+<dd>data (bytes): data to be hashed</dd>
+<dt>Kwargs:</dt>
+<dd>salt (bytes): data used to salt the hash
+constructor (func): function to create the hash</dd>
+<dt>Returns:</dt>
+<dd>base64 encoded hash</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.create_certificate">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">create_certificate</tt><big>(</big><em>csr</em>, <em>serial_number</em>, <em>days_valid</em>, <em>ca_pkey</em>, <em>ca_cert=None</em>, <em>is_ca=False</em>, <em>output_path=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#create_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.create_certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new X509 Certificate</p>
+<p>For a self signed cert, ca_cert is None.</p>
+<p>The cert chain will only be added when output_path is specified.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.create_csr">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">create_csr</tt><big>(</big><em>pkey</em>, <em>CN</em>, <em>O='ScatterBytes Network'</em>, <em>output_path=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#create_csr"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.create_csr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create and return a M2Crypto.X509.Request</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.create_pkey">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">create_pkey</tt><big>(</big><em>key_size=2048</em>, <em>output_path=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#create_pkey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.create_pkey" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create RSA key pair.</p>
+<p>key_size of 2048 recquired by NIST</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.load_certificate">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">load_certificate</tt><big>(</big><em>cert_path=None</em>, <em>wrap=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#load_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.load_certificate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.load_pkey">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">load_pkey</tt><big>(</big><em>key_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#load_pkey"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.load_pkey" title="Permalink to this definition">¶</a></dt>
+<dd><p>load a public key - with private key if available</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.make_context">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">make_context</tt><big>(</big><em>ca_cert_path</em>, <em>cert_path</em>, <em>key_path</em>, <em>mode='client'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#make_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.make_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.prepare_ssl_output_dir">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">prepare_ssl_output_dir</tt><big>(</big><em>output_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#prepare_ssl_output_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.prepare_ssl_output_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.crypt.stretch_passphrase">
+<tt class="descclassname">scatterbytes.crypt.</tt><tt class="descname">stretch_passphrase</tt><big>(</big><em>passphrase</em>, <em>salt=None</em>, <em>iterations=10000</em>, <em>length=16</em>, <em>output_format='binary'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/crypt.html#stretch_passphrase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.crypt.stretch_passphrase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stretch a passphrase using pbkdf2</p>
+<dl class="docutils">
+<dt>Params:</dt>
+<dd>passphrase (str): Passphrase to be stretched.</dd>
+<dt>Kwargs:</dt>
+<dd>salt (bytes): data to salt with
+iterations (int): iterations to use in pbkdf2
+length (int): length in bytes of stretched passphrase
+output_format (str): return format of binary or base64 encoding</dd>
+<dt>Returns:</dt>
+<dd>stretched passphrase encoded as binary or base64</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.errors">
+<span id="scatterbytes-errors-module"></span><h2>scatterbytes.errors module<a class="headerlink" href="#module-scatterbytes.errors" title="Permalink to this headline">¶</a></h2>
+<p>error classes used by this package.</p>
+<dl class="exception">
+<dt id="scatterbytes.errors.AuthenticationError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">AuthenticationError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#AuthenticationError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.AuthenticationError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.CRLError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">CRLError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#CRLError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.CRLError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.CertificateError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">CertificateError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#CertificateError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.CertificateError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.CertificateRequestError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">CertificateRequestError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#CertificateRequestError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.CertificateRequestError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ChecksumError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ChecksumError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ChecksumError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ChecksumError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+<p>error checksumming file</p>
+<p>used for disk and transmission related errors</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ChunkChecksumError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ChunkChecksumError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ChunkChecksumError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ChunkChecksumError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.ChunkError" title="scatterbytes.errors.ChunkError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.ChunkError</span></tt></a>, <a class="reference internal" href="#scatterbytes.errors.ChecksumError" title="scatterbytes.errors.ChecksumError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.ChecksumError</span></tt></a></p>
+<p>checksuming chunk failed</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ChunkError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ChunkError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ChunkError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ChunkError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+<p>related to file chunks</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ChunkNotFoundError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ChunkNotFoundError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ChunkNotFoundError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ChunkNotFoundError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.ChunkError" title="scatterbytes.errors.ChunkError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.ChunkError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ClientNotFoundError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ClientNotFoundError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ClientNotFoundError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ClientNotFoundError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.ConfigError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">ConfigError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#ConfigError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.ConfigError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.DownloadError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">DownloadError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#DownloadError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.DownloadError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.DuplicateFilenameError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">DuplicateFilenameError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#DuplicateFilenameError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.DuplicateFilenameError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.EncryptionError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">EncryptionError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#EncryptionError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.EncryptionError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.FileExistsError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">FileExistsError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#FileExistsError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.FileExistsError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.FileNotFoundError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">FileNotFoundError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#FileNotFoundError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.FileNotFoundError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.HTTPError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">HTTPError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#HTTPError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.HTTPError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.InsufficientStorageError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">InsufficientStorageError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#InsufficientStorageError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.InsufficientStorageError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.OutOfStorageError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">OutOfStorageError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#OutOfStorageError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.OutOfStorageError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.RequestExpiredError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">RequestExpiredError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#RequestExpiredError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.RequestExpiredError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.SBError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">SBError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#SBError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.SBError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.Exception</span></tt></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.SBValueError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">SBValueError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#SBValueError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.SBValueError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.ValueError</span></tt>, <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.SecureHashError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">SecureHashError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#SecureHashError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.SecureHashError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+<p>secure hash check failed</p>
+<p>used when comparison against secure hash (SHA-2) fails</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.StaleCommandRelayError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">StaleCommandRelayError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#StaleCommandRelayError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.StaleCommandRelayError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.TransferLogError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">TransferLogError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#TransferLogError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.TransferLogError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+<p>error related to download or upload log</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.UpdateError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">UpdateError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#UpdateError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.UpdateError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.errors.VolumeNotFoundError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">VolumeNotFoundError</tt><a class="reference internal" href="../_modules/scatterbytes/errors.html#VolumeNotFoundError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.VolumeNotFoundError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.errors.SBError" title="scatterbytes.errors.SBError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.errors.SBError</span></tt></a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.errors.format_exc">
+<tt class="descclassname">scatterbytes.errors.</tt><tt class="descname">format_exc</tt><big>(</big><em>e</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/errors.html#format_exc"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.errors.format_exc" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.https">
+<span id="scatterbytes-https-module"></span><h2>scatterbytes.https module<a class="headerlink" href="#module-scatterbytes.https" title="Permalink to this headline">¶</a></h2>
+<p>HTTPS functionality</p>
+<dl class="class">
+<dt id="scatterbytes.https.ClientSideChecker">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">ClientSideChecker</tt><big>(</big><em>host=None</em>, <em>peerCertHash=None</em>, <em>peerCertDigest='sha1'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#ClientSideChecker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.ClientSideChecker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">M2Crypto.SSL.Checker.Checker</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.FamilyThreadingMixIn">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">FamilyThreadingMixIn</tt><a class="reference internal" href="../_modules/scatterbytes/https.html#FamilyThreadingMixIn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.FamilyThreadingMixIn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">SocketServer.ThreadingMixIn</span></tt></p>
+<p>ThreadingMixIn that adds parent tracking</p>
+<dl class="method">
+<dt id="scatterbytes.https.FamilyThreadingMixIn.process_request">
+<tt class="descname">process_request</tt><big>(</big><em>request</em>, <em>client_address</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#FamilyThreadingMixIn.process_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.FamilyThreadingMixIn.process_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start a new thread to process the request.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.HTTPConnection">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">HTTPConnection</tt><big>(</big><em>host</em>, <em>port=None</em>, <em>strict=None</em>, <em>timeout=10</em>, <em>source_address=(''</em>, <em>0)</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPConnection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPConnection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">httplib.HTTPConnection</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.https.HTTPConnection.request">
+<tt class="descname">request</tt><big>(</big><em>method</em>, <em>url</em>, <em>body=None</em>, <em>headers=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPConnection.request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPConnection.request" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.HTTPSConnection">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">HTTPSConnection</tt><big>(</big><em>host</em>, <em>port=None</em>, <em>strict=None</em>, <em>timeout=10</em>, <em>source_address=(''</em>, <em>0)</em>, <em>ssl_context=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSConnection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSConnection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.HTTPConnection" title="scatterbytes.https.HTTPConnection"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPConnection</span></tt></a></p>
+<p>SSL connection with a timeout and bindable address.</p>
+<p>The current M2Crypto version doesn&#8217;t use the new timeout and
+source_address introduced in 2.6.</p>
+<dl class="method">
+<dt id="scatterbytes.https.HTTPSConnection.connect">
+<tt class="descname">connect</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSConnection.connect"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSConnection.connect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.https.HTTPSConnection.get_session">
+<tt class="descname">get_session</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSConnection.get_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSConnection.get_session" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.https.HTTPSConnection.set_session">
+<tt class="descname">set_session</tt><big>(</big><em>session</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSConnection.set_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSConnection.set_session" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.HTTPSServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">HTTPSServer</tt><big>(</big><em>server_address</em>, <em>RequestHandlerClass</em>, <em>ssl_context</em>, <em>bind_and_activate=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.HTTPServer" title="scatterbytes.https.HTTPServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPServer</span></tt></a></p>
+<p>HTTPS Server</p>
+<p>By default, it listens on all interfaces.</p>
+<dl class="method">
+<dt id="scatterbytes.https.HTTPSServer.finish">
+<tt class="descname">finish</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSServer.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSServer.finish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.https.HTTPSServer.finish_request">
+<tt class="descname">finish_request</tt><big>(</big><em>request</em>, <em>client_address</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPSServer.finish_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPSServer.finish_request" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.HTTPServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">HTTPServer</tt><big>(</big><em>server_address</em>, <em>RequestHandlerClass</em>, <em>bind_and_activate=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">SocketServer.TCPServer</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.https.HTTPServer.handle_error">
+<tt class="descname">handle_error</tt><big>(</big><em>request</em>, <em>client_address</em>, <em>error=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPServer.handle_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPServer.handle_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.https.HTTPServer.process_request">
+<tt class="descname">process_request</tt><big>(</big><em>request</em>, <em>client_address</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HTTPServer.process_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HTTPServer.process_request" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.HandlerLoggingMixIn">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">HandlerLoggingMixIn</tt><a class="reference internal" href="../_modules/scatterbytes/https.html#HandlerLoggingMixIn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HandlerLoggingMixIn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.https.HandlerLoggingMixIn.build_request_logger">
+<tt class="descname">build_request_logger</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HandlerLoggingMixIn.build_request_logger"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HandlerLoggingMixIn.build_request_logger" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.https.HandlerLoggingMixIn.log_message">
+<tt class="descname">log_message</tt><big>(</big><em>format</em>, <em>*args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#HandlerLoggingMixIn.log_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.HandlerLoggingMixIn.log_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.ThreadedHTTPSServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">ThreadedHTTPSServer</tt><big>(</big><em>server_address</em>, <em>RequestHandlerClass</em>, <em>ssl_context</em>, <em>bind_and_activate=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#ThreadedHTTPSServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.ThreadedHTTPSServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.FamilyThreadingMixIn" title="scatterbytes.https.FamilyThreadingMixIn"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.FamilyThreadingMixIn</span></tt></a>, <a class="reference internal" href="#scatterbytes.https.HTTPSServer" title="scatterbytes.https.HTTPSServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPSServer</span></tt></a></p>
+<p>multi-threaded HTTPS Server</p>
+<p>This is a multi-threaded HTTPS server.</p>
+<p>By default, it listens on all interfaces.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.https.ThreadedHTTPServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.https.</tt><tt class="descname">ThreadedHTTPServer</tt><big>(</big><em>server_address</em>, <em>RequestHandlerClass</em>, <em>bind_and_activate=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#ThreadedHTTPServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.ThreadedHTTPServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.FamilyThreadingMixIn" title="scatterbytes.https.FamilyThreadingMixIn"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.FamilyThreadingMixIn</span></tt></a>, <a class="reference internal" href="#scatterbytes.https.HTTPServer" title="scatterbytes.https.HTTPServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPServer</span></tt></a></p>
+<p>multi-threaded HTTP Server</p>
+<p>This is a multi-threaded HTTP server.</p>
+<p>By default, it listens on all interfaces.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.https.create_connection">
+<tt class="descclassname">scatterbytes.https.</tt><tt class="descname">create_connection</tt><big>(</big><em>url=None</em>, <em>host=None</em>, <em>port=None</em>, <em>strict=None</em>, <em>timeout=10</em>, <em>source_address=(''</em>, <em>0)</em>, <em>ssl_context=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/https.html#create_connection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.https.create_connection" title="Permalink to this definition">¶</a></dt>
+<dd><p>factory to create HTTPConnection or HTTPSConnection</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.jsonrpc">
+<span id="scatterbytes-jsonrpc-module"></span><h2>scatterbytes.jsonrpc module<a class="headerlink" href="#module-scatterbytes.jsonrpc" title="Permalink to this headline">¶</a></h2>
+<p>JSON-RPC functionality</p>
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.ControlNodeProxy">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">ControlNodeProxy</tt><big>(</big><em>config</em>, <em>source_address=(''</em>, <em>0)</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ControlNodeProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ControlNodeProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.RPCServerProxy" title="scatterbytes.jsonrpc.RPCServerProxy"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.RPCServerProxy</span></tt></a></p>
+<p>Proxy to the control node.</p>
+<p>configuration based on the client&#8217;s settings</p>
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.ControlNodeProxy.get_certificates">
+<tt class="descname">get_certificates</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ControlNodeProxy.get_certificates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ControlNodeProxy.get_certificates" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.ControlNodeProxy.make_get_request">
+<tt class="descname">make_get_request</tt><big>(</big><em>url</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ControlNodeProxy.make_get_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ControlNodeProxy.make_get_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make a GET request using the exisiting SSL session.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.ControlNodeProxy.reload_ssl_context">
+<tt class="descname">reload_ssl_context</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ControlNodeProxy.reload_ssl_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ControlNodeProxy.reload_ssl_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.InternalError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">InternalError</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#InternalError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.InternalError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InternalError.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32603</em><a class="headerlink" href="#scatterbytes.jsonrpc.InternalError.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InternalError.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Internal error'</em><a class="headerlink" href="#scatterbytes.jsonrpc.InternalError.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.InvalidParams">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">InvalidParams</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#InvalidParams"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidParams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InvalidParams.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32602</em><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidParams.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InvalidParams.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Invalid params'</em><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidParams.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.InvalidRequest">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">InvalidRequest</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#InvalidRequest"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidRequest" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InvalidRequest.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32600</em><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidRequest.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.InvalidRequest.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Invalid Request'</em><a class="headerlink" href="#scatterbytes.jsonrpc.InvalidRequest.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.JSONRPCError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">JSONRPCError</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#JSONRPCError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.JSONRPCError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">exceptions.StandardError</span></tt></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.JSONRPCError.json_code">
+<tt class="descname">json_code</tt><em class="property"> = 0</em><a class="headerlink" href="#scatterbytes.jsonrpc.JSONRPCError.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.JSONRPCError.json_data">
+<tt class="descname">json_data</tt><em class="property"> = ''</em><a class="headerlink" href="#scatterbytes.jsonrpc.JSONRPCError.json_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.JSONRPCError.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'an error occurred'</em><a class="headerlink" href="#scatterbytes.jsonrpc.JSONRPCError.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.MethodNotFound">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">MethodNotFound</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#MethodNotFound"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.MethodNotFound" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.MethodNotFound.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32601</em><a class="headerlink" href="#scatterbytes.jsonrpc.MethodNotFound.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.MethodNotFound.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Method not found'</em><a class="headerlink" href="#scatterbytes.jsonrpc.MethodNotFound.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.ParseError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">ParseError</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ParseError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ParseError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.ParseError.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32700</em><a class="headerlink" href="#scatterbytes.jsonrpc.ParseError.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.ParseError.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Parse error'</em><a class="headerlink" href="#scatterbytes.jsonrpc.ParseError.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.RPCDispatcher">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">RPCDispatcher</tt><big>(</big><em>obj=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCDispatcher"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCDispatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCDispatcher.marshalled_dispatch">
+<tt class="descname">marshalled_dispatch</tt><big>(</big><em>data</em>, <em>client_cert_info=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCDispatcher.marshalled_dispatch"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCDispatcher.marshalled_dispatch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCDispatcher.register_function">
+<tt class="descname">register_function</tt><big>(</big><em>function</em>, <em>name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCDispatcher.register_function"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCDispatcher.register_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCDispatcher.register_instance">
+<tt class="descname">register_instance</tt><big>(</big><em>instance</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCDispatcher.register_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCDispatcher.register_instance" title="Permalink to this definition">¶</a></dt>
+<dd><p>register published methods for instance</p>
+<p>methods with &#8220;published&#8221; attribute will be registered.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">RPCRequestHandler</tt><big>(</big><em>request</em>, <em>client_address</em>, <em>server</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCRequestHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">BaseHTTPServer.BaseHTTPRequestHandler</span></tt></p>
+<p>JSON-RPC Request Handler.</p>
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler.do_POST">
+<tt class="descname">do_POST</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCRequestHandler.do_POST"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler.do_POST" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interpret and dispatch JSON-RPC</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler.log_message">
+<tt class="descname">log_message</tt><big>(</big><em>format</em>, <em>*args</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCRequestHandler.log_message"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler.log_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler.read_incoming_data">
+<tt class="descname">read_incoming_data</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCRequestHandler.read_incoming_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler.read_incoming_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler.report_404">
+<tt class="descname">report_404</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCRequestHandler.report_404"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler.report_404" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.RPCRequestHandler.server_version">
+<tt class="descname">server_version</tt><em class="property"> = 'ScatterBytes Server'</em><a class="headerlink" href="#scatterbytes.jsonrpc.RPCRequestHandler.server_version" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.RPCServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">RPCServer</tt><big>(</big><em>(ip_address</em>, <em>port)</em>, <em>dispatcher</em>, <em>request_handler=&lt;class scatterbytes.jsonrpc.RPCRequestHandler at 0x4706738&gt;</em>, <em>log_requests=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.HTTPServer" title="scatterbytes.https.HTTPServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPServer</span></tt></a></p>
+<p>JSON-RPC Server.</p>
+<p>single-threaded JSON-RPC server</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.RPCServerProxy">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">RPCServerProxy</tt><big>(</big><em>url</em>, <em>ssl_context=None</em>, <em>source_address=(''</em>, <em>0)</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#RPCServerProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.RPCServerProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.SBJSONEncoder">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">SBJSONEncoder</tt><big>(</big><em>skipkeys=False</em>, <em>ensure_ascii=True</em>, <em>check_circular=True</em>, <em>allow_nan=True</em>, <em>sort_keys=False</em>, <em>indent=None</em>, <em>separators=None</em>, <em>encoding='utf-8'</em>, <em>default=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#SBJSONEncoder"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.SBJSONEncoder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">json.encoder.JSONEncoder</span></tt></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.SBJSONEncoder.DATE">
+<tt class="descname">DATE</tt><a class="headerlink" href="#scatterbytes.jsonrpc.SBJSONEncoder.DATE" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <tt class="xref py py-class docutils literal"><span class="pre">date</span></tt></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.SBJSONEncoder.default">
+<tt class="descname">default</tt><big>(</big><em>obj</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#SBJSONEncoder.default"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.SBJSONEncoder.default" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.SSLRPCServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">SSLRPCServer</tt><big>(</big><em>(ip_address</em>, <em>port)</em>, <em>dispatcher</em>, <em>ssl_context</em>, <em>request_handler=&lt;class scatterbytes.jsonrpc.RPCRequestHandler at 0x4706738&gt;</em>, <em>log_requests=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#SSLRPCServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.SSLRPCServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.HTTPSServer" title="scatterbytes.https.HTTPSServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.HTTPSServer</span></tt></a></p>
+<p>JSON-RPC Server.</p>
+<p>single-threaded SSL JSON-RPC server</p>
+</dd></dl>
+
+<dl class="exception">
+<dt id="scatterbytes.jsonrpc.ServerError">
+<em class="property">exception </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">ServerError</tt><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ServerError"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ServerError" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.JSONRPCError" title="scatterbytes.jsonrpc.JSONRPCError"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.JSONRPCError</span></tt></a></p>
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.ServerError.json_code">
+<tt class="descname">json_code</tt><em class="property"> = -32000</em><a class="headerlink" href="#scatterbytes.jsonrpc.ServerError.json_code" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.jsonrpc.ServerError.json_message">
+<tt class="descname">json_message</tt><em class="property"> = 'Server error'</em><a class="headerlink" href="#scatterbytes.jsonrpc.ServerError.json_message" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.StorageNodeProxy">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">StorageNodeProxy</tt><big>(</big><em>url</em>, <em>ssl_context=None</em>, <em>source_address=(''</em>, <em>0)</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#StorageNodeProxy"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.StorageNodeProxy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.jsonrpc.RPCServerProxy" title="scatterbytes.jsonrpc.RPCServerProxy"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.jsonrpc.RPCServerProxy</span></tt></a></p>
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.StorageNodeProxy.retrieve_chunk">
+<tt class="descname">retrieve_chunk</tt><big>(</big><em>auth</em>, <em>auth_ts</em>, <em>expire_time</em>, <em>chunk_name</em>, <em>byte_start=0</em>, <em>byte_end=0</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#StorageNodeProxy.retrieve_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.StorageNodeProxy.retrieve_chunk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.jsonrpc.StorageNodeProxy.store_chunk">
+<tt class="descname">store_chunk</tt><big>(</big><em>sig</em>, <em>sig_ts</em>, <em>expire_time</em>, <em>transfer_name</em>, <em>chunk_name</em>, <em>chunk_data</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#StorageNodeProxy.store_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.StorageNodeProxy.store_chunk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.ThreadedRPCServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">ThreadedRPCServer</tt><big>(</big><em>(ip_address</em>, <em>port)</em>, <em>dispatcher</em>, <em>request_handler=&lt;class scatterbytes.jsonrpc.RPCRequestHandler at 0x4706738&gt;</em>, <em>log_requests=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ThreadedRPCServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ThreadedRPCServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.ThreadedHTTPServer" title="scatterbytes.https.ThreadedHTTPServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.ThreadedHTTPServer</span></tt></a>, <a class="reference internal" href="#scatterbytes.util.FamilyThreadMixIn" title="scatterbytes.util.FamilyThreadMixIn"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.util.FamilyThreadMixIn</span></tt></a></p>
+<p>JSON-RPC Server.</p>
+<p>multi-threaded JSON-RPC server</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.jsonrpc.ThreadedSSLRPCServer">
+<em class="property">class </em><tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">ThreadedSSLRPCServer</tt><big>(</big><em>(ip_address</em>, <em>port)</em>, <em>dispatcher</em>, <em>ssl_context</em>, <em>request_handler=&lt;class scatterbytes.jsonrpc.RPCRequestHandler at 0x4706738&gt;</em>, <em>log_requests=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#ThreadedSSLRPCServer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.ThreadedSSLRPCServer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.https.ThreadedHTTPSServer" title="scatterbytes.https.ThreadedHTTPSServer"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.https.ThreadedHTTPSServer</span></tt></a>, <a class="reference internal" href="#scatterbytes.util.FamilyThreadMixIn" title="scatterbytes.util.FamilyThreadMixIn"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.util.FamilyThreadMixIn</span></tt></a></p>
+<p>JSON-RPC Server.</p>
+<p>multi-threaded SSL JSON-RPC server</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.create_sb_error_index">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">create_sb_error_index</tt><big>(</big><em>error_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#create_sb_error_index"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.create_sb_error_index" title="Permalink to this definition">¶</a></dt>
+<dd><p>base the integer index on the name</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.decode_object">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">decode_object</tt><big>(</big><em>d</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#decode_object"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.decode_object" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.gen_request_id">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">gen_request_id</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#gen_request_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.gen_request_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.gen_storage_node_proxy_creator">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">gen_storage_node_proxy_creator</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#gen_storage_node_proxy_creator"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.gen_storage_node_proxy_creator" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.index_sb_errors">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">index_sb_errors</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#index_sb_errors"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.index_sb_errors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.marshall_request">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">marshall_request</tt><big>(</big><em>request_id</em>, <em>method_name</em>, <em>params</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#marshall_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.marshall_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>create a jsonrpc request</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.marshall_response">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">marshall_response</tt><big>(</big><em>request_id</em>, <em>result=None</em>, <em>error=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#marshall_response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.marshall_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>create a jsonrpc response</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.unmarshall_request">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">unmarshall_request</tt><big>(</big><em>m</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#unmarshall_request"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.unmarshall_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>convert json to method, params, and request_id</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.unmarshall_response">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">unmarshall_response</tt><big>(</big><em>m</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#unmarshall_response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.unmarshall_response" title="Permalink to this definition">¶</a></dt>
+<dd><p>convert json to method, params, and request_id</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.unwrap_error">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">unwrap_error</tt><big>(</big><em>e</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#unwrap_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.unwrap_error" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.jsonrpc.wrap_error">
+<tt class="descclassname">scatterbytes.jsonrpc.</tt><tt class="descname">wrap_error</tt><big>(</big><em>e</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/jsonrpc.html#wrap_error"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.jsonrpc.wrap_error" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrap an SBError in a JSON Error</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.node">
+<span id="scatterbytes-node-module"></span><h2>scatterbytes.node module<a class="headerlink" href="#module-scatterbytes.node" title="Permalink to this headline">¶</a></h2>
+<p>functionality common to both client and storage nodes</p>
+<p>UserNode</p>
+<blockquote>
+<div>base class for StorageNode and ClientNode</div></blockquote>
+<dl class="class">
+<dt id="scatterbytes.node.UserNode">
+<em class="property">class </em><tt class="descclassname">scatterbytes.node.</tt><tt class="descname">UserNode</tt><big>(</big><em>control_node_proxy</em>, <em>snode_proxy_creator</em>, <em>config=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>base class for ClientNode and StorageNode</p>
+<dl class="docutils">
+<dt>config</dt>
+<dd>configuration instance</dd>
+<dt>control_node_proxy</dt>
+<dd>proxy instance for the control node</dd>
+<dt>snode_proxy_creator</dt>
+<dd>function to create a storage node proxy</dd>
+<dt>cert</dt>
+<dd>TLS Certificate</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.node.UserNode.certificate">
+<tt class="descname">certificate</tt><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>certificate belonging to this instance</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.check_certificate">
+<tt class="descname">check_certificate</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.check_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.check_certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check our certificate and get a new one if needed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.check_certificate_expired">
+<tt class="descname">check_certificate_expired</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.check_certificate_expired"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.check_certificate_expired" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.get_certificate">
+<tt class="descname">get_certificate</tt><big>(</big><em>owner_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.get_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.get_certificate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.load_certificates">
+<tt class="descname">load_certificates</tt><big>(</big><em>retries=3</em>, <em>wait_time=10</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.load_certificates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.load_certificates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all server certificates from the control node.</p>
+<dl class="docutils">
+<dt>This includes:</dt>
+<dd><ul class="first last simple">
+<li>software signer certificate</li>
+<li>relay command signer certificate</li>
+<li>root CA&#8217;s CRL</li>
+<li>signature for CRL (hack) - M2Crypto can&#8217;t verify CRL</li>
+</ul>
+</dd>
+<dt>retries</dt>
+<dd>number of times to retry for failed attempts</dd>
+<dt>wait_time</dt>
+<dd>seconds to wait between attempts</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.make_ssl_context">
+<tt class="descname">make_ssl_context</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.make_ssl_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.make_ssl_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate an ssl context for this node</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.node.UserNode.node_O">
+<tt class="descname">node_O</tt><em class="property"> = 'ScatterBytes Network'</em><a class="headerlink" href="#scatterbytes.node.UserNode.node_O" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.node.UserNode.node_id">
+<tt class="descname">node_id</tt><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.node_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.node_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.reload_ssl_context">
+<tt class="descname">reload_ssl_context</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.reload_ssl_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.reload_ssl_context" title="Permalink to this definition">¶</a></dt>
+<dd><p>reload ssl context for control node if cert has changed</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.request_new_certificate">
+<tt class="descname">request_new_certificate</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.request_new_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.request_new_certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Obtain an X509 certificate from the control node.</p>
+<p>If a valid certificate code is set in configuration, as is done during
+service initialization, a certificate is obtained from the control
+node.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.node.UserNode.show_account">
+<tt class="descname">show_account</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#UserNode.show_account"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.UserNode.show_account" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.node.download_certificates">
+<tt class="descclassname">scatterbytes.node.</tt><tt class="descname">download_certificates</tt><big>(</big><em>control_node_proxy</em>, <em>ssl_dir</em>, <em>retries=0</em>, <em>wait_time=0</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#download_certificates"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.download_certificates" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get all server certificates from the control node.</p>
+<dl class="docutils">
+<dt>This includes:</dt>
+<dd><ul class="first last simple">
+<li>software signer certificate</li>
+<li>relay command signer certificate</li>
+<li>root CA&#8217;s CRL</li>
+<li>signature for CRL (hack) - M2Crypto can&#8217;t verify CRL</li>
+</ul>
+</dd>
+<dt>retries</dt>
+<dd>number of times to retry for failed attempts</dd>
+<dt>wait_time</dt>
+<dd>seconds to wait between attempts</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.node.get_certificate">
+<tt class="descclassname">scatterbytes.node.</tt><tt class="descname">get_certificate</tt><big>(</big><em>ssl_dir</em>, <em>owner_name</em>, <em>cache=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/node.html#get_certificate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.node.get_certificate" title="Permalink to this definition">¶</a></dt>
+<dd><p>get a certificate by name</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.updates">
+<span id="scatterbytes-updates-module"></span><h2>scatterbytes.updates module<a class="headerlink" href="#module-scatterbytes.updates" title="Permalink to this headline">¶</a></h2>
+<p>ScatterBytes Updates.</p>
+<p>This module functions to update the scatterbytes package.</p>
+<dl class="function">
+<dt id="scatterbytes.updates.add_package_to_path">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">add_package_to_path</tt><big>(</big><em>package_path=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#add_package_to_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.add_package_to_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.check_cert_signature">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">check_cert_signature</tt><big>(</big><em>cert_pem_string</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#check_cert_signature"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.check_cert_signature" title="Permalink to this definition">¶</a></dt>
+<dd><p>check that a certificate was signed by root cert</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.check_update_period">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">check_update_period</tt><big>(</big><em>minutes=60</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#check_update_period"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.check_update_period" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if an update has been attempted within specified period.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.find_data_dir">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">find_data_dir</tt><big>(</big><em>use_cache=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#find_data_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.find_data_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the directory to write package to.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.find_home_dir">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">find_home_dir</tt><big>(</big><em>use_cache=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#find_home_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.find_home_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.find_package_path">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">find_package_path</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#find_package_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.find_package_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.get_current_program_info">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">get_current_program_info</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#get_current_program_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.get_current_program_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>grab the current package info from the update host</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.get_installed_sb_version">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">get_installed_sb_version</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#get_installed_sb_version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.get_installed_sb_version" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.get_software_signer_cert">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">get_software_signer_cert</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#get_software_signer_cert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.get_software_signer_cert" title="Permalink to this definition">¶</a></dt>
+<dd><p>get the certificate to check signature on new software</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.get_updated_program">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">get_updated_program</tt><big>(</big><em>name</em>, <em>installed_version</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#get_updated_program"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.get_updated_program" title="Permalink to this definition">¶</a></dt>
+<dd><p>update scatterbytes packages or sbnet program</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.reload_package">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">reload_package</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#reload_package"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.reload_package" title="Permalink to this definition">¶</a></dt>
+<dd><p>reload the scatterbytes package</p>
+<p>This is intended to be used after inserting a new package in sys.path.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.update_all">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">update_all</tt><big>(</big><em>force=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#update_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.update_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.update_check_log">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">update_check_log</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#update_check_log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.update_check_log" title="Permalink to this definition">¶</a></dt>
+<dd><p>update log for program updates</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.updates.update_package">
+<tt class="descclassname">scatterbytes.updates.</tt><tt class="descname">update_package</tt><big>(</big><em>force=False</em>, <em>queue=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/updates.html#update_package"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.updates.update_package" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.util">
+<span id="scatterbytes-util-module"></span><h2>scatterbytes.util module<a class="headerlink" href="#module-scatterbytes.util" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="scatterbytes.util.ControlNodeTime">
+<em class="property">class </em><tt class="descclassname">scatterbytes.util.</tt><tt class="descname">ControlNodeTime</tt><a class="reference internal" href="../_modules/scatterbytes/util.html#ControlNodeTime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.ControlNodeTime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>helps keep time with control node</p>
+<p>keeps track of offset between control node and client/storage nodes</p>
+<dl class="method">
+<dt id="scatterbytes.util.ControlNodeTime.update">
+<tt class="descname">update</tt><big>(</big><em>server_ts</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#ControlNodeTime.update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.ControlNodeTime.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.util.ControlNodeTime.utcnow">
+<tt class="descname">utcnow</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#ControlNodeTime.utcnow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.ControlNodeTime.utcnow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.util.FamilyThread">
+<em class="property">class </em><tt class="descclassname">scatterbytes.util.</tt><tt class="descname">FamilyThread</tt><big>(</big><em>*args</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#FamilyThread"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.FamilyThread" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></tt>, <a class="reference internal" href="#scatterbytes.util.FamilyThreadMixIn" title="scatterbytes.util.FamilyThreadMixIn"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.util.FamilyThreadMixIn</span></tt></a></p>
+<p>parent aware thread</p>
+<p>use this in place of Thread</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.util.FamilyThreadMixIn">
+<em class="property">class </em><tt class="descclassname">scatterbytes.util.</tt><tt class="descname">FamilyThreadMixIn</tt><a class="reference internal" href="../_modules/scatterbytes/util.html#FamilyThreadMixIn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.FamilyThreadMixIn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>parent aware thread mix-in</p>
+<dl class="method">
+<dt id="scatterbytes.util.FamilyThreadMixIn.is_childof">
+<tt class="descname">is_childof</tt><big>(</big><em>thread</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#FamilyThreadMixIn.is_childof"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.FamilyThreadMixIn.is_childof" title="Permalink to this definition">¶</a></dt>
+<dd><p>is this thread is a child of thread given as argument</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.util.FamilyThreadMixIn.set_parent">
+<tt class="descname">set_parent</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#FamilyThreadMixIn.set_parent"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.FamilyThreadMixIn.set_parent" title="Permalink to this definition">¶</a></dt>
+<dd><p>call this in init</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.util.LimitedFileReader">
+<em class="property">class </em><tt class="descclassname">scatterbytes.util.</tt><tt class="descname">LimitedFileReader</tt><big>(</big><em>f</em>, <em>byte_start</em>, <em>byte_end</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#LimitedFileReader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.LimitedFileReader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>file-like object that only reads to a predetermined byte</p>
+<dl class="method">
+<dt id="scatterbytes.util.LimitedFileReader.read">
+<tt class="descname">read</tt><big>(</big><em>size=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#LimitedFileReader.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.LimitedFileReader.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.util.RequestsLogFilter">
+<em class="property">class </em><tt class="descclassname">scatterbytes.util.</tt><tt class="descname">RequestsLogFilter</tt><big>(</big><em>name=''</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#RequestsLogFilter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.RequestsLogFilter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">logging.Filter</span></tt></p>
+<p>filter HTTPS Requests</p>
+<dl class="method">
+<dt id="scatterbytes.util.RequestsLogFilter.filter">
+<tt class="descname">filter</tt><big>(</big><em>record</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#RequestsLogFilter.filter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.RequestsLogFilter.filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.b32decode">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">b32decode</tt><big>(</big><em>b32_data</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#b32decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.b32decode" title="Permalink to this definition">¶</a></dt>
+<dd><p>restore padding and decode</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.b32encode">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">b32encode</tt><big>(</big><em>input_bytes</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#b32encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.b32encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>encode and strip padding</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.b64decode">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">b64decode</tt><big>(</big><em>b64_data</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#b64decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.b64decode" title="Permalink to this definition">¶</a></dt>
+<dd><p>restore padding and decode</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.b64encode">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">b64encode</tt><big>(</big><em>input_bytes</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#b64encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.b64encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>encode and strip padding</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base10_to_base32">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base10_to_base32</tt><big>(</big><em>base10_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base10_to_base32"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base10_to_base32" title="Permalink to this definition">¶</a></dt>
+<dd><p>change base from 10 to 32</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base10_to_base64">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base10_to_base64</tt><big>(</big><em>base10_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base10_to_base64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base10_to_base64" title="Permalink to this definition">¶</a></dt>
+<dd><p>change base from 10 to 64</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base16_to_base32">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base16_to_base32</tt><big>(</big><em>base16_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base16_to_base32"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base16_to_base32" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base32_to_base10">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base32_to_base10</tt><big>(</big><em>base32_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base32_to_base10"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base32_to_base10" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base32_to_base16">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base32_to_base16</tt><big>(</big><em>base32_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base32_to_base16"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base32_to_base16" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.base64_to_base10">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">base64_to_base10</tt><big>(</big><em>base64_value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#base64_to_base10"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.base64_to_base10" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.create_default_logging_handler">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">create_default_logging_handler</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#create_default_logging_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.create_default_logging_handler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.create_error_logging_handler">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">create_error_logging_handler</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#create_error_logging_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.create_error_logging_handler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.create_requests_logging_handler">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">create_requests_logging_handler</tt><big>(</big><em>config</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#create_requests_logging_handler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.create_requests_logging_handler" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.datetime_from_string">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">datetime_from_string</tt><big>(</big><em>dt_str</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#datetime_from_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.datetime_from_string" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.datetime_to_string">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">datetime_to_string</tt><big>(</big><em>dt=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#datetime_to_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.datetime_to_string" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.get_available_storage">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">get_available_storage</tt><big>(</big><em>storage_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#get_available_storage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.get_available_storage" title="Permalink to this definition">¶</a></dt>
+<dd><p>number of megabytes available in storage_path</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.get_utc_datetime">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">get_utc_datetime</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#get_utc_datetime"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.get_utc_datetime" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the current UTC date and time, possibly compensating for drift.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.util.setup_logging">
+<tt class="descclassname">scatterbytes.util.</tt><tt class="descname">setup_logging</tt><big>(</big><em>config=None</em>, <em>stdout=False</em>, <em>verbosity=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/util.html#setup_logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.util.setup_logging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.validation">
+<span id="scatterbytes-validation-module"></span><h2>scatterbytes.validation module<a class="headerlink" href="#module-scatterbytes.validation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="scatterbytes.validation.BTCAddressField">
+<em class="property">class </em><tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">BTCAddressField</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#BTCAddressField"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.BTCAddressField" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">formencode.api.FancyValidator</span></tt></p>
+<p><strong>Messages</strong></p>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">badType</span></tt>:</dt>
+<dd>The input must be a string (not a <tt class="docutils literal"><span class="pre">%(type)s</span></tt>: <tt class="docutils literal"><span class="pre">%(value)r</span></tt>)</dd>
+<dt><tt class="docutils literal"><span class="pre">empty</span></tt>:</dt>
+<dd>Please enter a value</dd>
+<dt><tt class="docutils literal"><span class="pre">invalid</span></tt>:</dt>
+<dd>Invalid Bitcoin address.</dd>
+<dt><tt class="docutils literal"><span class="pre">noneType</span></tt>:</dt>
+<dd>The input must be a string (not None)</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.validation.BTCAddressField.declarative_count">
+<tt class="descname">declarative_count</tt><em class="property"> = 53</em><a class="headerlink" href="#scatterbytes.validation.BTCAddressField.declarative_count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.validation.BTCAddressField.validate_python">
+<tt class="descname">validate_python</tt><big>(</big><em>value</em>, <em>state</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#BTCAddressField.validate_python"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.BTCAddressField.validate_python" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.validation.BTCPaymentThreshold">
+<em class="property">class </em><tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">BTCPaymentThreshold</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#BTCPaymentThreshold"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.BTCPaymentThreshold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">formencode.validators.Int</span></tt></p>
+<p>validate satoshi threshold for which payments are made to a storage node</p>
+<blockquote>
+<div>It is expressed in satoshi (10^-8 BTC) as an integer.</div></blockquote>
+<p><strong>Messages</strong></p>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">badType</span></tt>:</dt>
+<dd>The input must be a string (not a <tt class="docutils literal"><span class="pre">%(type)s</span></tt>: <tt class="docutils literal"><span class="pre">%(value)r</span></tt>)</dd>
+<dt><tt class="docutils literal"><span class="pre">empty</span></tt>:</dt>
+<dd>Please enter a value</dd>
+<dt><tt class="docutils literal"><span class="pre">integer</span></tt>:</dt>
+<dd>Please enter an integer value</dd>
+<dt><tt class="docutils literal"><span class="pre">noneType</span></tt>:</dt>
+<dd>The input must be a string (not None)</dd>
+<dt><tt class="docutils literal"><span class="pre">tooHigh</span></tt>:</dt>
+<dd>Please enter a number that is <tt class="docutils literal"><span class="pre">%(max)s</span></tt> or smaller</dd>
+<dt><tt class="docutils literal"><span class="pre">tooLow</span></tt>:</dt>
+<dd>Please enter a number that is <tt class="docutils literal"><span class="pre">%(min)s</span></tt> or greater</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.validation.BTCPaymentThreshold.declarative_count">
+<tt class="descname">declarative_count</tt><em class="property"> = 54</em><a class="headerlink" href="#scatterbytes.validation.BTCPaymentThreshold.declarative_count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.validation.BTCPaymentThreshold.max">
+<tt class="descname">max</tt><em class="property"> = 1000000000</em><a class="headerlink" href="#scatterbytes.validation.BTCPaymentThreshold.max" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.validation.BTCPaymentThreshold.min">
+<tt class="descname">min</tt><em class="property"> = 100000</em><a class="headerlink" href="#scatterbytes.validation.BTCPaymentThreshold.min" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.validation.SecurePassword">
+<em class="property">class </em><tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">SecurePassword</tt><big>(</big><em>*args</em>, <em>**kw</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#SecurePassword"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.SecurePassword" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">formencode.api.FancyValidator</span></tt></p>
+<p><strong>Messages</strong></p>
+<dl class="docutils">
+<dt><tt class="docutils literal"><span class="pre">badType</span></tt>:</dt>
+<dd>The input must be a string (not a <tt class="docutils literal"><span class="pre">%(type)s</span></tt>: <tt class="docutils literal"><span class="pre">%(value)r</span></tt>)</dd>
+<dt><tt class="docutils literal"><span class="pre">empty</span></tt>:</dt>
+<dd>Please enter a value</dd>
+<dt><tt class="docutils literal"><span class="pre">non_letter</span></tt>:</dt>
+<dd>You must include at least <tt class="docutils literal"><span class="pre">%(non_letter)i</span></tt> non letter in your password</dd>
+<dt><tt class="docutils literal"><span class="pre">noneType</span></tt>:</dt>
+<dd>The input must be a string (not None)</dd>
+<dt><tt class="docutils literal"><span class="pre">too_few</span></tt>:</dt>
+<dd>Your password must be longer than <tt class="docutils literal"><span class="pre">%(min)i</span></tt> characters long</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.validation.SecurePassword.declarative_count">
+<tt class="descname">declarative_count</tt><em class="property"> = 55</em><a class="headerlink" href="#scatterbytes.validation.SecurePassword.declarative_count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.validation.SecurePassword.generate_random_value">
+<em class="property">classmethod </em><tt class="descname">generate_random_value</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#SecurePassword.generate_random_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.SecurePassword.generate_random_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.validation.SecurePassword.letter_regex">
+<tt class="descname">letter_regex</tt><em class="property"> = &lt;_sre.SRE_Pattern object at 0x3dd2500&gt;</em><a class="headerlink" href="#scatterbytes.validation.SecurePassword.letter_regex" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.validation.SecurePassword.min">
+<tt class="descname">min</tt><em class="property"> = 7</em><a class="headerlink" href="#scatterbytes.validation.SecurePassword.min" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.validation.SecurePassword.non_letter">
+<tt class="descname">non_letter</tt><em class="property"> = 1</em><a class="headerlink" href="#scatterbytes.validation.SecurePassword.non_letter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.validation.SecurePassword.validate_python">
+<tt class="descname">validate_python</tt><big>(</big><em>value</em>, <em>state</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#SecurePassword.validate_python"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.SecurePassword.validate_python" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.validation.b58decode">
+<tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">b58decode</tt><big>(</big><em>v</em>, <em>length</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#b58decode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.b58decode" title="Permalink to this definition">¶</a></dt>
+<dd><p>decode v into a string of len bytes</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.validation.b58encode">
+<tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">b58encode</tt><big>(</big><em>v</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#b58encode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.b58encode" title="Permalink to this definition">¶</a></dt>
+<dd><p>encode v, which is a string of bytes, to base58.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.validation.get_bcaddress_version">
+<tt class="descclassname">scatterbytes.validation.</tt><tt class="descname">get_bcaddress_version</tt><big>(</big><em>strAddress</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/validation.html#get_bcaddress_version"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.validation.get_bcaddress_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns None if strAddress is invalid.  Otherwise returns integer version
+of address.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-scatterbytes" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

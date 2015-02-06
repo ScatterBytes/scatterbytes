@@ -1,0 +1,730 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.client package &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.client package</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="scatterbytes-client-package">
+<h1>scatterbytes.client package<a class="headerlink" href="#scatterbytes-client-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-scatterbytes.client.chunk">
+<span id="scatterbytes-client-chunk-module"></span><h2>scatterbytes.client.chunk module<a class="headerlink" href="#module-scatterbytes.client.chunk" title="Permalink to this headline">¶</a></h2>
+<p>handles splitting and recombining files</p>
+<dl class="class">
+<dt id="scatterbytes.client.chunk.ClientChunk">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">ClientChunk</tt><big>(</big><em>file_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#ClientChunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.ClientChunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="scatterbytes.html#scatterbytes.chunk.Chunk" title="scatterbytes.chunk.Chunk"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.chunk.Chunk</span></tt></a></p>
+<dl class="classmethod">
+<dt id="scatterbytes.client.chunk.ClientChunk.create">
+<em class="property">classmethod </em><tt class="descname">create</tt><big>(</big><em>raw_data</em>, <em>chunk_dir</em>, <em>prefix='chunk'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#ClientChunk.create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.ClientChunk.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>create new ClientChunk instance</p>
+<dl class="docutils">
+<dt>chunk_dir</dt>
+<dd>directory containing this chunk</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.chunk.ClientChunk.sequence_number">
+<tt class="descname">sequence_number</tt><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#ClientChunk.sequence_number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.ClientChunk.sequence_number" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.add_parity">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">add_parity</tt><big>(</big><em>chunks</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#add_parity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.add_parity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.append_checksum">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">append_checksum</tt><big>(</big><em>file_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#append_checksum"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.append_checksum" title="Permalink to this definition">¶</a></dt>
+<dd><p>append crc32 checksum to file</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.calc_chunk_sizes">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">calc_chunk_sizes</tt><big>(</big><em>data_size</em>, <em>min_chunk_size=999996</em>, <em>tgt_chunk_size=1499996</em>, <em>max_chunk_size=1999996</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#calc_chunk_sizes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.calc_chunk_sizes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Figure out the best chunk size</p>
+<p>subtract 4 to leave room for the 4 byte checksum</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.combine_chunks">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">combine_chunks</tt><big>(</big><em>chunks</em>, <em>output_path</em>, <em>decompress=False</em>, <em>encrypt_key=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#combine_chunks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.combine_chunks" title="Permalink to this definition">¶</a></dt>
+<dd><p>rebuild the original file from chunks</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.has_par2">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">has_par2</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#has_par2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.has_par2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.par2_create">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">par2_create</tt><big>(</big><em>block_size</em>, <em>blocks_needed</em>, <em>parity_count</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#par2_create"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.par2_create" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.par2_repair">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">par2_repair</tt><big>(</big><em>parfile_names</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#par2_repair"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.par2_repair" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.read_chunk_dir">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">read_chunk_dir</tt><big>(</big><em>chunk_dir</em>, <em>prefix='chunk'</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#read_chunk_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.read_chunk_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>generate a list of ClientChunks for chunk_dir</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.split_file">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">split_file</tt><big>(</big><em>file_path</em>, <em>chunk_output_dir</em>, <em>compress=True</em>, <em>encrypt_key=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#split_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.split_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>split the file into chunks</p>
+<p>returns a list of ClientChunk objects</p>
+<dl class="docutils">
+<dt>compress</dt>
+<dd>compress with gzip</dd>
+<dt>encrypt_key</dt>
+<dd>128 bit key used for AES encryption</dd>
+</dl>
+<p>128 bit key recommended by Schneier
+<a class="reference external" href="https://www.schneier.com/blog/archives/2009/07/another_new_aes.html">https://www.schneier.com/blog/archives/2009/07/another_new_aes.html</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.chunk.whereis">
+<tt class="descclassname">scatterbytes.client.chunk.</tt><tt class="descname">whereis</tt><big>(</big><em>program</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/chunk.html#whereis"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.chunk.whereis" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.client.downloader">
+<span id="scatterbytes-client-downloader-module"></span><h2>scatterbytes.client.downloader module<a class="headerlink" href="#module-scatterbytes.client.downloader" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="scatterbytes.client.downloader.DownloadLog">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">DownloadLog</tt><big>(</big><em>dir_path</em>, <em>name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.client.util.ChunkTransferLog" title="scatterbytes.client.util.ChunkTransferLog"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.client.util.ChunkTransferLog</span></tt></a></p>
+<dl class="method">
+<dt id="scatterbytes.client.downloader.DownloadLog.append_complete">
+<tt class="descname">append_complete</tt><big>(</big><em>chunk_sequence</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadLog.append_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog.append_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.DownloadLog.append_download_info">
+<tt class="descname">append_download_info</tt><big>(</big><em>chunk_info</em>, <em>download_info</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadLog.append_download_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog.append_download_info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.DownloadLog.dt_re">
+<tt class="descname">dt_re</tt><em class="property"> = &lt;_sre.SRE_Pattern object at 0x2800000&gt;</em><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog.dt_re" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.DownloadLog.name">
+<tt class="descname">name</tt><em class="property"> = 'downloads.log'</em><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.client.downloader.DownloadLog.read">
+<em class="property">classmethod </em><tt class="descname">read</tt><big>(</big><em>download_dir_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadLog.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadLog.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.downloader.DownloadWorkerThread">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">DownloadWorkerThread</tt><big>(</big><em>sn_proxy_creator</em>, <em>chunk_job_queue</em>, <em>chunk_job_complete_queue</em>, <em>chunk_job_failed_queue</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadWorkerThread"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadWorkerThread" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.client.downloader.DownloadWorkerThread.download_chunk_part">
+<tt class="descname">download_chunk_part</tt><big>(</big><em>job</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadWorkerThread.download_chunk_part"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadWorkerThread.download_chunk_part" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.DownloadWorkerThread.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadWorkerThread.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadWorkerThread.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.DownloadWorkerThread.shutdown">
+<tt class="descname">shutdown</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadWorkerThread.shutdown"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadWorkerThread.shutdown" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.DownloadWorkerThread.working">
+<tt class="descname">working</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#DownloadWorkerThread.working"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.DownloadWorkerThread.working" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.downloader.SplitChunk">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">SplitChunk</tt><big>(</big><em>chunk_dir</em>, <em>chunk_info</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>Chunk split into segments for downloading.</p>
+<p>keeps state of downloaded parts for a chunk</p>
+<dl class="docutils">
+<dt>complete</dt>
+<dd>all segments downloaded and chunk is complete</dd>
+</dl>
+<dl class="method">
+<dt id="scatterbytes.client.downloader.SplitChunk.complete_job">
+<tt class="descname">complete_job</tt><big>(</big><em>job</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.complete_job"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.complete_job" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.SplitChunk.create_jobs">
+<tt class="descname">create_jobs</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.create_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.create_jobs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.SplitChunk.jobs_complete">
+<tt class="descname">jobs_complete</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.jobs_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.jobs_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.SplitChunk.jobs_incomplete">
+<tt class="descname">jobs_incomplete</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.jobs_incomplete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.jobs_incomplete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.SplitChunk.min_segment_size">
+<tt class="descname">min_segment_size</tt><em class="property"> = 100000</em><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.min_segment_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.SplitChunk.split">
+<tt class="descname">split</tt><big>(</big><em>segment_count</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>split chunk into even byte ranges</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.SplitChunk.split_limit">
+<tt class="descname">split_limit</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#SplitChunk.split_limit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.SplitChunk.split_limit" title="Permalink to this definition">¶</a></dt>
+<dd><p>maximum segments a chunk should be split into</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">ThreadedDownloader</tt><big>(</big><em>file_info</em>, <em>control_node_proxy</em>, <em>snode_proxy_creator</em>, <em>thread_count</em>, <em>encrypt_passphrase</em>, <em>output_path</em>, <em>download_dir</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>downloads all chunks and recombines them</p>
+<dl class="docutils">
+<dt>file_info</dt>
+<dd>information about the file from the control node</dd>
+<dt>thread_count</dt>
+<dd>number of download threads to spawn</dd>
+<dt>output_path</dt>
+<dd>path to save the downloaded file</dd>
+<dt>download_dir</dt>
+<dd>directory where all downloaded files are stored. The downloaded file
+will be stored under a subdirectory using the volume name and a hash
+of the file name.</dd>
+<dt>chunk_download_dir</dt>
+<dd>dirctory where chunks for this specific download are stored -
+hash of the volume name and file name</dd>
+</dl>
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.clean_chunk_download_dir">
+<tt class="descname">clean_chunk_download_dir</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.clean_chunk_download_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.clean_chunk_download_dir" title="Permalink to this definition">¶</a></dt>
+<dd><p>delete all partial downloads</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.complete">
+<tt class="descname">complete</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.download">
+<tt class="descname">download</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.download"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.download" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.download_chunks">
+<tt class="descname">download_chunks</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.download_chunks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.download_chunks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.get_chunk_download_dir">
+<em class="property">classmethod </em><tt class="descname">get_chunk_download_dir</tt><big>(</big><em>download_dir</em>, <em>volume_name</em>, <em>file_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.get_chunk_download_dir"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.get_chunk_download_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.handle_failed_jobs">
+<tt class="descname">handle_failed_jobs</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.handle_failed_jobs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.handle_failed_jobs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.log_control_node_response">
+<tt class="descname">log_control_node_response</tt><big>(</big><em>chunk_record</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.log_control_node_response"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.log_control_node_response" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.process_log">
+<tt class="descname">process_log</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.process_log"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.process_log" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.process_queues">
+<tt class="descname">process_queues</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.process_queues"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.process_queues" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.request_chunks">
+<tt class="descname">request_chunks</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.request_chunks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.request_chunks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.requests_complete">
+<tt class="descname">requests_complete</tt><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.requests_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.requests_complete" title="Permalink to this definition">¶</a></dt>
+<dd><p>do not make any more requests</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.shutdown_workers">
+<tt class="descname">shutdown_workers</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.shutdown_workers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.shutdown_workers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.sleep_period">
+<tt class="descname">sleep_period</tt><em class="property"> = 0.1</em><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.sleep_period" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.downloader.ThreadedDownloader.update_chunk">
+<tt class="descname">update_chunk</tt><big>(</big><em>chunk_info</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#ThreadedDownloader.update_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.ThreadedDownloader.update_chunk" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.downloader.gen_job_id">
+<tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">gen_job_id</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#gen_job_id"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.gen_job_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.downloader.get_chunk_path">
+<tt class="descclassname">scatterbytes.client.downloader.</tt><tt class="descname">get_chunk_path</tt><big>(</big><em>chunk_dir</em>, <em>chunk_sequence</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/downloader.html#get_chunk_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.downloader.get_chunk_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.client.jsonrpc">
+<span id="scatterbytes-client-jsonrpc-module"></span><h2>scatterbytes.client.jsonrpc module<a class="headerlink" href="#module-scatterbytes.client.jsonrpc" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="scatterbytes.client.jsonrpc.create_client_node">
+<tt class="descclassname">scatterbytes.client.jsonrpc.</tt><tt class="descname">create_client_node</tt><big>(</big><em>control_node_proxy=None</em>, <em>storage_node_proxy_creator=None</em>, <em>config=None</em>, <em>verbosity=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/jsonrpc.html#create_client_node"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.jsonrpc.create_client_node" title="Permalink to this definition">¶</a></dt>
+<dd><p>ClientNode Factory</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.client.node">
+<span id="scatterbytes-client-node-module"></span><h2>scatterbytes.client.node module<a class="headerlink" href="#module-scatterbytes.client.node" title="Permalink to this headline">¶</a></h2>
+<p>client node</p>
+<p>The client uploads files to storage nodes.  Files are split into chunks,
+optionally compressed and encrypted, then uploaded to storage nodes.  The
+control node tracks where each file chunk is stored.</p>
+<dl class="class">
+<dt id="scatterbytes.client.node.ClientNode">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">ClientNode</tt><big>(</big><em>control_node_proxy=None</em>, <em>snode_proxy_creator=None</em>, <em>config=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="scatterbytes.html#scatterbytes.node.UserNode" title="scatterbytes.node.UserNode"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.node.UserNode</span></tt></a></p>
+<p>client node for sending and retrieving files</p>
+<dl class="docutils">
+<dt>control_node_proxy</dt>
+<dd>proxy for the control node</dd>
+</dl>
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNode.config_class">
+<tt class="descname">config_class</tt><a class="headerlink" href="#scatterbytes.client.node.ClientNode.config_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#scatterbytes.client.node.ClientNodeConfig" title="scatterbytes.client.node.ClientNodeConfig"><tt class="xref py py-class docutils literal"><span class="pre">ClientNodeConfig</span></tt></a></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.create_volume">
+<tt class="descname">create_volume</tt><big>(</big><em>name</em>, <em>mirror_count</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.create_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.create_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.delete_file">
+<tt class="descname">delete_file</tt><big>(</big><em>file_name</em>, <em>volume_name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.delete_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.delete_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.delete_volume">
+<tt class="descname">delete_volume</tt><big>(</big><em>name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.delete_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.delete_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.download_file">
+<tt class="descname">download_file</tt><big>(</big><em>file_name</em>, <em>output_path</em>, <em>volume_name=None</em>, <em>thread_count=None</em>, <em>overwrite_output=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.download_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.download_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.find_files">
+<tt class="descname">find_files</tt><big>(</big><em>volume_name</em>, <em>search_criteria</em>, <em>detail_level=0</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.find_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.find_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>find files matching search criteria</p>
+<dl class="docutils">
+<dt>volume_name</dt>
+<dd>name of the volume to search on</dd>
+<dt>search_criteria</dt>
+<dd><p class="first">list of tuples containing expressions for search
+example:</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>[&#8216;AND&#8217;,</dt>
+<dd><p class="first">(&#8216;author&#8217;, &#8216;=&#8217;, &#8216;Joe Smith&#8217;),
+(</p>
+<blockquote>
+<div>&#8216;OR&#8217;,
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;jpg&#8217;),
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;tif&#8217;)
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;gif&#8217;)</div></blockquote>
+<p class="last">)</p>
+</dd>
+</dl>
+<p>]</p>
+</div></blockquote>
+<p>Both operands and conjunctions can be negated by prepending a &#8221;!&#8221;
+character. For example:</p>
+<blockquote class="last">
+<div><blockquote>
+<div><p>[&#8216;!AND&#8217;,
+(&#8216;author&#8217;, &#8216;!=&#8217;, &#8216;Joe Smith&#8217;),
+(</p>
+<blockquote>
+<div>&#8216;OR&#8217;,
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;jpg&#8217;),
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;tif&#8217;)
+(&#8216;filetype&#8217;, &#8216;=&#8217;, &#8216;gif&#8217;)</div></blockquote>
+<p>)</p>
+</div></blockquote>
+<p>]</p>
+</div></blockquote>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.list_files">
+<tt class="descname">list_files</tt><big>(</big><em>volume_name</em>, <em>detail_level=0</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.list_files"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.list_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.list_volumes">
+<tt class="descname">list_volumes</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.list_volumes"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.list_volumes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.prepare_file">
+<tt class="descname">prepare_file</tt><big>(</big><em>file_path</em>, <em>encrypt=True</em>, <em>compress=True</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.prepare_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.prepare_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare a file for uploading.</p>
+<dl class="docutils">
+<dt>encrypt</dt>
+<dd>encrypt using AES-128</dd>
+<dt>compress</dt>
+<dd>compress using zlib</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.register">
+<tt class="descname">register</tt><big>(</big><em>node_type</em>, <em>email</em>, <em>password</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.register"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.register" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.resume_upload">
+<tt class="descname">resume_upload</tt><big>(</big><em>file_chunks_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.resume_upload"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.resume_upload" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resume an incomplete upload.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.retrieve_chunk">
+<tt class="descname">retrieve_chunk</tt><big>(</big><em>snode_proxy</em>, <em>snode_args</em>, <em>chunk_md5sum</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.retrieve_chunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.retrieve_chunk" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve the chunk from the node given in node_info.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.update_file">
+<tt class="descname">update_file</tt><big>(</big><em>volume_name</em>, <em>file_name</em>, <em>metadata=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.update_file"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.update_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.update_volume">
+<tt class="descname">update_volume</tt><big>(</big><em>name</em>, <em>set_default=False</em>, <em>new_name=''</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.update_volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.update_volume" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNode.upload_file_chunks">
+<tt class="descname">upload_file_chunks</tt><big>(</big><em>file_chunks_path</em>, <em>volume_name=None</em>, <em>thread_count=None</em>, <em>file_name=None</em>, <em>metadata=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNode.upload_file_chunks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNode.upload_file_chunks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Upload file chunks to the ScatterBytes network.</p>
+<p>The file should already be chunked using the prepare_file method. If
+an upload was interruped, it will be resumed.</p>
+<dl class="docutils">
+<dt>file_chunks_path</dt>
+<dd>path to the file chunks being uploaded</dd>
+<dt>thread_count</dt>
+<dd>number of concurrent upload threads to spawn</dd>
+<dt>file_name</dt>
+<dd>name to assign it - If not given, the file path will be used.</dd>
+<dt>metadata</dt>
+<dd>a dict containing extra metadata to be stored with the file.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.node.ClientNodeConfig">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">ClientNodeConfig</tt><big>(</big><em>config_path=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNodeConfig"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="scatterbytes.html#scatterbytes.config.ConfigBase" title="scatterbytes.config.ConfigBase"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.config.ConfigBase</span></tt></a></p>
+<p>ClientNode configuration</p>
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNodeConfig.config_name">
+<tt class="descname">config_name</tt><em class="property"> = 'client_node.config'</em><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.config_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNodeConfig.defaults">
+<tt class="descname">defaults</tt><em class="property"> = {'encrypt_key_iterations': ('data_prep', 10000, 'int'), 'upload_thread_count': ('transfer', 3, 'int'), 'download_thread_count': ('transfer', 10, 'int'), 'control_node_address': ('network', 'controlnode.test.scatterbytes.net', None), 'compress': ('data_prep', True, 'boolean'), 'encrypt_passphrase': ('data_prep', '', None), 'node_id': ('main', '', None), 'debug': ('main', True, 'boolean'), 'control_node_port': ('network', 8080, 'int'), 'encrypt': ('data_prep', True, 'boolean')}</em><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.defaults" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNodeConfig.encrypt_passphrase">
+<tt class="descname">encrypt_passphrase</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNodeConfig.encrypt_passphrase"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.encrypt_passphrase" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ClientNodeConfig.init_prep">
+<tt class="descname">init_prep</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ClientNodeConfig.init_prep"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.init_prep" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNodeConfig.log_filename">
+<tt class="descname">log_filename</tt><em class="property"> = 'scatterbytes_client_node.log'</em><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.log_filename" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.ClientNodeConfig.sections">
+<tt class="descname">sections</tt><em class="property"> = ['main', 'network', 'data_prep', 'transfer']</em><a class="headerlink" href="#scatterbytes.client.node.ClientNodeConfig.sections" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.node.FileChunkInfo">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">FileChunkInfo</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>information about a chunked file</p>
+<p>The information includes if a file is encrypted or compressed, and the
+volume name, file name, and ID of the file on the Control Node.</p>
+<dl class="attribute">
+<dt id="scatterbytes.client.node.FileChunkInfo.chunking_complete">
+<tt class="descname">chunking_complete</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.chunking_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.chunking_complete" title="Permalink to this definition">¶</a></dt>
+<dd><p>if the file chunking completed</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.FileChunkInfo.compressed">
+<tt class="descname">compressed</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.compressed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.compressed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.FileChunkInfo.encrypted">
+<tt class="descname">encrypted</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.encrypted"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.encrypted" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.FileChunkInfo.file_path">
+<tt class="descname">file_path</tt><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.file_path"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.file_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.FileChunkInfo.get_value">
+<tt class="descname">get_value</tt><big>(</big><em>attr_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.get_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.get_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.FileChunkInfo.has_value">
+<tt class="descname">has_value</tt><big>(</big><em>attr_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.has_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.has_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.FileChunkInfo.set_value">
+<tt class="descname">set_value</tt><big>(</big><em>attr_name</em>, <em>value</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#FileChunkInfo.set_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.FileChunkInfo.set_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.node.ThreadedUploader">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">ThreadedUploader</tt><big>(</big><em>cn_proxy</em>, <em>sn_proxy_creator</em>, <em>volume_name</em>, <em>file_name</em>, <em>chunks</em>, <em>upload_thread_count</em>, <em>upload_log</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ThreadedUploader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ThreadedUploader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></tt></p>
+<p>chunk uploader that uses a worker thread per chunk</p>
+<p>Chunks are sequenced according to their file name (e.g. chunk_0001).
+References to chunks on the control node are by volume_name, file_name, and
+chunk sequence number.</p>
+<dl class="method">
+<dt id="scatterbytes.client.node.ThreadedUploader.request_storage">
+<tt class="descname">request_storage</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ThreadedUploader.request_storage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ThreadedUploader.request_storage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ThreadedUploader.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ThreadedUploader.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ThreadedUploader.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.ThreadedUploader.upload_chunks">
+<tt class="descname">upload_chunks</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#ThreadedUploader.upload_chunks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.ThreadedUploader.upload_chunks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.node.UploadLog">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">UploadLog</tt><big>(</big><em>dir_path</em>, <em>name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#scatterbytes.client.util.ChunkTransferLog" title="scatterbytes.client.util.ChunkTransferLog"><tt class="xref py py-class docutils literal"><span class="pre">scatterbytes.client.util.ChunkTransferLog</span></tt></a></p>
+<dl class="method">
+<dt id="scatterbytes.client.node.UploadLog.append_assignment">
+<tt class="descname">append_assignment</tt><big>(</big><em>chunk_file_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadLog.append_assignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadLog.append_assignment" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.node.UploadLog.append_complete">
+<tt class="descname">append_complete</tt><big>(</big><em>chunk_file_name</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadLog.append_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadLog.append_complete" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.node.UploadLog.name">
+<tt class="descname">name</tt><em class="property"> = 'uploads.log'</em><a class="headerlink" href="#scatterbytes.client.node.UploadLog.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="scatterbytes.client.node.UploadLog.read_incomplete">
+<em class="property">classmethod </em><tt class="descname">read_incomplete</tt><big>(</big><em>chunks_dir_path</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadLog.read_incomplete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadLog.read_incomplete" title="Permalink to this definition">¶</a></dt>
+<dd><p>&#8220;reads log to determine which chunks were not uploaded</p>
+<dl class="docutils">
+<dt>chunks_dir_path</dt>
+<dd>directory where chunks and this log file are</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="scatterbytes.client.node.UploadWorkerThread">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">UploadWorkerThread</tt><big>(</big><em>sn_proxy_creator</em>, <em>transfer_info</em>, <em>chunk</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadWorkerThread"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadWorkerThread" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">threading.Thread</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.client.node.UploadWorkerThread.run">
+<tt class="descname">run</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#UploadWorkerThread.run"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.UploadWorkerThread.run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.node.format_size">
+<tt class="descclassname">scatterbytes.client.node.</tt><tt class="descname">format_size</tt><big>(</big><em>size</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/node.html#format_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.node.format_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>convert to printable output using a convenient unit</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.client.util">
+<span id="scatterbytes-client-util-module"></span><h2>scatterbytes.client.util module<a class="headerlink" href="#module-scatterbytes.client.util" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="scatterbytes.client.util.ChunkTransferLog">
+<em class="property">class </em><tt class="descclassname">scatterbytes.client.util.</tt><tt class="descname">ChunkTransferLog</tt><big>(</big><em>dir_path</em>, <em>name=None</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#ChunkTransferLog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.ChunkTransferLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<dl class="method">
+<dt id="scatterbytes.client.util.ChunkTransferLog.append">
+<tt class="descname">append</tt><big>(</big><em>msg</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#ChunkTransferLog.append"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.ChunkTransferLog.append" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.util.ChunkTransferLog.close">
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#ChunkTransferLog.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.ChunkTransferLog.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="scatterbytes.client.util.ChunkTransferLog.fsync">
+<tt class="descname">fsync</tt><big>(</big><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#ChunkTransferLog.fsync"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.ChunkTransferLog.fsync" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="scatterbytes.client.util.ChunkTransferLog.name">
+<tt class="descname">name</tt><em class="property"> = 'changeme.log'</em><a class="headerlink" href="#scatterbytes.client.util.ChunkTransferLog.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.util.create_flags">
+<tt class="descclassname">scatterbytes.client.util.</tt><tt class="descname">create_flags</tt><big>(</big><em>compressed=False</em>, <em>encrypted=False</em>, <em>parity=False</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#create_flags"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.create_flags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="scatterbytes.client.util.read_flags">
+<tt class="descclassname">scatterbytes.client.util.</tt><tt class="descname">read_flags</tt><big>(</big><em>flags</em><big>)</big><a class="reference internal" href="../_modules/scatterbytes/client/util.html#read_flags"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#scatterbytes.client.util.read_flags" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-scatterbytes.client">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-scatterbytes.client" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

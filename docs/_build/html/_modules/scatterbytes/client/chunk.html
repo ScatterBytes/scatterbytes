@@ -1,0 +1,509 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.client.chunk &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.client.chunk</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.client.chunk</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;handles splitting and recombining files</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">zlib</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="c"># see if encryption is available</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">M2Crypto.EVP</span> <span class="kn">import</span> <span class="n">Cipher</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">Cipher</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="c"># check for multiprocessing - platforms without shared semaphore will raise an</span>
+<span class="c"># error</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="k">except</span><span class="p">:</span>
+    <span class="n">multiprocessing</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="kn">from</span> <span class="nn">..chunk</span> <span class="kn">import</span> <span class="n">Chunk</span>
+<span class="kn">from</span> <span class="nn">..chunk</span> <span class="kn">import</span> <span class="n">CHUNK_SIZE_MIN</span>
+<span class="kn">from</span> <span class="nn">..chunk</span> <span class="kn">import</span> <span class="n">CHUNK_SIZE_MAX</span>
+<span class="kn">from</span> <span class="nn">..crypt</span> <span class="kn">import</span> <span class="n">calc_file_crc32</span>
+<span class="kn">from</span> <span class="nn">..crypt</span> <span class="kn">import</span> <span class="n">AESKey</span>
+
+
+<span class="c"># Size of the data chunks to be uploaded.</span>
+<span class="n">CHUNK_SIZE_TGT</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">CHUNK_SIZE_MIN</span> <span class="o">*</span> <span class="mf">1.5</span><span class="p">)</span>
+
+<span class="n">CIPHER_ENCODE</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">CIPHER_DECODE</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">CIPHER_MODE</span> <span class="o">=</span> <span class="s">&#39;aes_128_cfb&#39;</span>
+<span class="c"># CFB mode doesn&#39;t require padding and shouldn&#39;t have leftover data so a call</span>
+<span class="c"># to final should not be needed.  Assertions are in place to check.</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ClientChunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.ClientChunk">[docs]</a><span class="k">class</span> <span class="nc">ClientChunk</span><span class="p">(</span><span class="n">Chunk</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="n">Chunk</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parity</span> <span class="o">=</span> <span class="bp">False</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ClientChunk.sequence_number"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.ClientChunk.sequence_number">[docs]</a>    <span class="k">def</span> <span class="nf">sequence_number</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ClientChunk.create"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.ClientChunk.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">raw_data</span><span class="p">,</span> <span class="n">chunk_dir</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;chunk&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;create new ClientChunk instance</span>
+
+<span class="sd">        chunk_dir</span>
+<span class="sd">            directory containing this chunk</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">other_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">)</span> <span class="k">if</span> \
+                       <span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">)]</span>
+        <span class="n">other_names</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">last_digit</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">other_names</span><span class="p">:</span>
+            <span class="n">last_digit</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">other_names</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">filename</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">last_digit</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">9</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;creating chunk </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">raw_data</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">append_checksum</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ClientChunk</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="read_chunk_dir"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.read_chunk_dir">[docs]</a><span class="k">def</span> <span class="nf">read_chunk_dir</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;chunk&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;generate a list of ClientChunks for chunk_dir&quot;&quot;&quot;</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">)</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">prefix</span><span class="p">)]</span>
+    <span class="n">filenames</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ClientChunk</span><span class="p">(</span><span class="n">file_path</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">chunks</span>
+</div>
+<div class="viewcode-block" id="split_file"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.split_file">[docs]</a><span class="k">def</span> <span class="nf">split_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">chunk_output_dir</span><span class="p">,</span> <span class="n">compress</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">encrypt_key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;split the file into chunks</span>
+
+<span class="sd">        returns a list of ClientChunk objects</span>
+
+<span class="sd">        compress</span>
+<span class="sd">            compress with gzip</span>
+
+<span class="sd">        encrypt_key</span>
+<span class="sd">            128 bit key used for AES encryption</span>
+
+<span class="sd">        128 bit key recommended by Schneier</span>
+<span class="sd">        https://www.schneier.com/blog/archives/2009/07/another_new_aes.html</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;original file size is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">file_size</span><span class="p">)</span>
+        <span class="n">chunk_sizes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">data_stream</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+            <span class="n">esalt</span> <span class="o">=</span> <span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_salt</span>
+            <span class="k">if</span> <span class="n">esalt</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">esalt</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">encrypt_key</span><span class="p">,</span> <span class="n">AESKey</span><span class="p">)</span>
+            <span class="c"># account for iv</span>
+            <span class="c"># size should be same as key</span>
+            <span class="n">iv</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">iv</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">)</span>
+            <span class="n">encryptor</span> <span class="o">=</span> <span class="n">Cipher</span><span class="p">(</span>
+                <span class="n">CIPHER_MODE</span><span class="p">,</span> <span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">,</span> <span class="n">iv</span><span class="p">,</span> <span class="n">CIPHER_ENCODE</span>
+            <span class="p">)</span>
+            <span class="n">data_stream</span> <span class="o">=</span> <span class="n">data_stream</span> <span class="o">+</span> <span class="n">esalt</span> <span class="o">+</span> <span class="n">iv</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">compress</span><span class="p">:</span>
+            <span class="n">chunk_sizes</span> <span class="o">=</span> <span class="n">calc_chunk_sizes</span><span class="p">(</span><span class="n">file_size</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_stream</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;splitting </span><span class="si">%s</span><span class="s"> into </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">chunk_output_dir</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;compress: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">compress</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;encrypt: True&#39;</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">chunk_prefix</span> <span class="o">=</span> <span class="s">&#39;chunk&#39;</span>
+        <span class="k">if</span> <span class="n">compress</span><span class="p">:</span>
+            <span class="n">compressor</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">compressobj</span><span class="p">(</span><span class="mi">9</span><span class="p">)</span>
+            <span class="n">chunk_prefix</span> <span class="o">=</span> <span class="s">&#39;tmp_chunk&#39;</span>
+        <span class="c"># figure out the size of the first chunk</span>
+        <span class="k">if</span> <span class="n">chunk_sizes</span><span class="p">:</span>
+            <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_sizes</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">CHUNK_SIZE_MAX</span>
+
+        <span class="k">def</span> <span class="nf">chunk_stream</span><span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="n">check_size</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+            <span class="c"># check_size is for the last bit of data that is smaller than a</span>
+            <span class="c"># chunk when data is compressed and the data sizes are</span>
+            <span class="c"># unpredictable.</span>
+            <span class="n">min_size</span> <span class="o">=</span> <span class="n">chunk_size</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">check_size</span><span class="p">:</span>
+                <span class="n">min_size</span> <span class="o">=</span> <span class="mi">1</span>
+            <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_stream</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">min_size</span><span class="p">:</span>
+                <span class="n">chunk_data</span> <span class="o">=</span> <span class="n">data_stream</span><span class="p">[:</span><span class="n">chunk_size</span><span class="p">]</span>
+                <span class="c"># If compressing, will have to create new chunks later.</span>
+                <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ClientChunk</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">chunk_data</span><span class="p">,</span> <span class="n">chunk_output_dir</span><span class="p">,</span>
+                                           <span class="n">prefix</span><span class="o">=</span><span class="n">chunk_prefix</span><span class="p">))</span>
+                <span class="n">data_stream</span> <span class="o">=</span> <span class="n">data_stream</span><span class="p">[</span><span class="n">chunk_size</span><span class="p">:]</span>
+                <span class="k">if</span> <span class="n">chunk_sizes</span><span class="p">:</span>
+                    <span class="c"># next chunk size may be different</span>
+                    <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_sizes</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
+
+        <span class="k">while</span> <span class="n">f</span><span class="o">.</span><span class="n">tell</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">file_size</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">CHUNK_SIZE_MAX</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">compress</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">compressor</span><span class="o">.</span><span class="n">compress</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">encryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="k">assert</span> <span class="ow">not</span> <span class="n">encryptor</span><span class="o">.</span><span class="n">final</span><span class="p">()</span>
+            <span class="n">data_stream</span> <span class="o">+=</span> <span class="n">data</span>
+            <span class="n">data_stream_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_stream</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;data stream length: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">data_stream_len</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span> <span class="o">=</span> <span class="n">chunk_stream</span><span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
+        <span class="c"># process data not chunked yet</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s"> bytes left over&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_stream</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">compress</span><span class="p">:</span>
+            <span class="c"># may have compressed data left.</span>
+            <span class="n">flushed_data</span> <span class="o">=</span> <span class="n">compressor</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">flushed_data</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s">&#39;another </span><span class="si">%s</span><span class="s"> bytes of flushed data&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">flushed_data</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+                    <span class="n">flushed_data</span> <span class="o">=</span> <span class="n">encryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">flushed_data</span><span class="p">)</span>
+                    <span class="k">assert</span> <span class="ow">not</span> <span class="n">encryptor</span><span class="o">.</span><span class="n">final</span><span class="p">()</span>
+                <span class="n">data_stream</span> <span class="o">+=</span> <span class="n">flushed_data</span>
+        <span class="k">if</span> <span class="n">data_stream</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span> <span class="o">=</span> <span class="n">chunk_stream</span><span class="p">(</span><span class="n">data_stream</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">,</span>
+                                                     <span class="bp">False</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="ow">not</span> <span class="n">chunk_sizes</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="c"># finished initial data chunking.</span>
+        <span class="n">new_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">c</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">compress</span><span class="p">:</span>
+            <span class="n">emsg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;original size was </span><span class="si">%s</span><span class="s">. expected new size to be &#39;</span>
+                    <span class="s">&#39;</span><span class="si">%s</span><span class="s">, but it is </span><span class="si">%s</span><span class="s">&#39;</span><span class="p">)</span>
+            <span class="n">expected_size</span> <span class="o">=</span> <span class="n">file_size</span>
+            <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+                <span class="n">expected_size</span> <span class="o">=</span> <span class="n">file_size</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">esalt</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">iv</span><span class="p">)</span>
+            <span class="n">emsg</span> <span class="o">=</span> <span class="n">emsg</span> <span class="o">%</span> <span class="p">(</span><span class="n">file_size</span><span class="p">,</span> <span class="n">expected_size</span><span class="p">,</span> <span class="n">new_size</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">expected_size</span> <span class="o">==</span> <span class="n">new_size</span><span class="p">,</span> <span class="n">emsg</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># must reorganize the chunks.</span>
+            <span class="n">new_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">chunk_sizes</span> <span class="o">=</span> <span class="n">calc_chunk_sizes</span><span class="p">(</span><span class="n">new_size</span><span class="p">)</span>
+            <span class="c"># just replace the old chunk with the new one.</span>
+            <span class="n">data_stream</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+            <span class="k">for</span> <span class="n">chunk_size</span> <span class="ow">in</span> <span class="n">chunk_sizes</span><span class="p">:</span>
+                <span class="c"># read the old chunks until there is enough to write.</span>
+                <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_stream</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">chunk_size</span><span class="p">:</span>
+                    <span class="n">old_chunk</span> <span class="o">=</span> <span class="n">chunks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="n">data_stream</span> <span class="o">+=</span> <span class="n">old_chunk</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">raw</span><span class="o">=</span><span class="bp">True</span><span class="p">)[:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span>
+                    <span class="c"># free up the space</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">old_chunk</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+                    <span class="c"># small files will not fill a chunk</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">chunks</span><span class="p">:</span>
+                        <span class="k">break</span>
+                <span class="n">chunk_data</span> <span class="o">=</span> <span class="n">data_stream</span><span class="p">[:</span><span class="n">chunk_size</span><span class="p">]</span>
+                <span class="n">new_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ClientChunk</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">chunk_data</span><span class="p">,</span> <span class="n">chunk_output_dir</span><span class="p">))</span>
+                <span class="n">data_stream</span> <span class="o">=</span> <span class="n">data_stream</span><span class="p">[</span><span class="n">chunk_size</span><span class="p">:]</span>
+            <span class="n">chunks</span> <span class="o">=</span> <span class="n">new_chunks</span>
+            <span class="c"># There should not be anything left over.</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">data_stream</span>
+        <span class="c"># size for comparison</span>
+        <span class="n">size_ratio</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">*</span> <span class="n">new_size</span> <span class="o">/</span> <span class="n">file_size</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;new size (combined chunks) is </span><span class="si">%s</span><span class="s"> bytes&#39;</span> <span class="o">%</span> <span class="n">new_size</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;size ratio is </span><span class="si">%f</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">size_ratio</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;split file into </span><span class="si">%s</span><span class="s"> chunks&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">chunks</span>
+</div>
+<div class="viewcode-block" id="combine_chunks"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.combine_chunks">[docs]</a><span class="k">def</span> <span class="nf">combine_chunks</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">output_path</span><span class="p">,</span> <span class="n">decompress</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">encrypt_key</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;rebuild the original file from chunks</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;combining </span><span class="si">%s</span><span class="s"> chunks&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="n">salt_length</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">key_length</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_salt</span><span class="p">:</span>
+            <span class="n">salt_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_salt</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">salt_length</span> <span class="o">==</span> <span class="mi">16</span><span class="p">,</span> <span class="n">salt_length</span>
+        <span class="n">key_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">key_length</span> <span class="o">==</span> <span class="mi">16</span><span class="p">,</span> <span class="n">key_length</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">decompress</span><span class="p">:</span>
+        <span class="n">decompressor</span> <span class="o">=</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompressobj</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+        <span class="c"># salt, then iv</span>
+        <span class="n">iv</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">byte_range</span><span class="o">=</span><span class="p">[</span><span class="n">salt_length</span><span class="p">,</span> <span class="n">salt_length</span> <span class="o">+</span> <span class="n">key_length</span><span class="p">])</span>
+        <span class="n">decryptor</span> <span class="o">=</span> <span class="n">Cipher</span><span class="p">(</span>
+            <span class="n">CIPHER_MODE</span><span class="p">,</span> <span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">,</span> <span class="n">iv</span><span class="p">,</span> <span class="n">CIPHER_DECODE</span>
+        <span class="p">)</span>
+    <span class="c"># sort out any parity chunks</span>
+    <span class="n">parity_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="n">chunks</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">parity</span><span class="p">:</span>
+        <span class="n">parity_chunks</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">chunks</span><span class="o">.</span><span class="n">pop</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">parity_chunks</span> <span class="ow">and</span> <span class="n">has_par2</span><span class="p">():</span>
+        <span class="n">cwd1</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">parity_chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">file_path</span><span class="p">))</span>
+        <span class="c"># The files have to end in .par2 to work.</span>
+        <span class="k">for</span> <span class="n">parity_chunk</span> <span class="ow">in</span> <span class="n">parity_chunks</span><span class="p">:</span>
+            <span class="n">new_name</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">parity_chunk</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;par2&#39;</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">parity_chunk</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">new_name</span><span class="p">)</span>
+            <span class="n">parity_chunk</span><span class="o">.</span><span class="n">file_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">parity_chunk</span><span class="o">.</span><span class="n">file_path</span><span class="p">),</span> <span class="n">new_name</span><span class="p">)</span>
+        <span class="c"># It won&#39;t recognize them by name, so put them on the command line.</span>
+        <span class="n">par2_repair</span><span class="p">([</span><span class="n">p</span><span class="o">.</span><span class="n">filename</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">parity_chunks</span><span class="p">])</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">cwd1</span><span class="p">)</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks</span><span class="p">):</span>
+        <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">encrypt_key</span><span class="p">:</span>
+            <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">size</span>
+            <span class="k">if</span> <span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_salt</span><span class="p">:</span>
+                <span class="c"># strip salt and IV</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+                    <span class="n">byte_range</span><span class="o">=</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">)</span> <span class="o">+</span> \
+                                <span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_salt</span><span class="p">),</span>
+                                <span class="n">chunk</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># skip the IV</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+                    <span class="n">byte_range</span><span class="o">=</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">encrypt_key</span><span class="o">.</span><span class="n">binary_key</span><span class="p">),</span> <span class="n">chunk</span><span class="o">.</span><span class="n">size</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">encrypt_key</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">decryptor</span><span class="o">.</span><span class="n">final</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">decompress</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="ow">not</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">unused_data</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;file size is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="add_parity"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.add_parity">[docs]</a><span class="k">def</span> <span class="nf">add_parity</span><span class="p">(</span><span class="n">chunks</span><span class="p">):</span>
+    <span class="c"># add parity chunks to the list.</span>
+    <span class="n">firstwd</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getcwd</span><span class="p">()</span>
+    <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_par2</span><span class="p">():</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Please install parchive from &#39;</span>
+            <span class="s">&#39;http://parchive.sourceforge.net/ &#39;</span>
+            <span class="s">&#39;to use parity files.&#39;</span><span class="p">)</span>
+            <span class="k">print</span> <span class="n">msg</span>
+            <span class="k">return</span>
+        <span class="c"># stick to around 5 percent rounding up</span>
+        <span class="n">parity_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span> <span class="o">*</span> <span class="o">.</span><span class="mo">07</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">parity_count</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;producing </span><span class="si">%s</span><span class="s"> parity chunks&#39;</span> <span class="o">%</span> <span class="n">parity_count</span><span class="p">)</span>
+        <span class="n">chunk_sizes</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">size</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">]</span>
+        <span class="n">chunk_sizes</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="c"># parity block size (smallest unit)</span>
+        <span class="n">block_size</span> <span class="o">=</span> <span class="n">chunk_sizes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c"># block size must be a multiple of 4</span>
+        <span class="k">while</span> <span class="n">block_size</span> <span class="o">%</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">block_size</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;block size is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">block_size</span><span class="p">)</span>
+        <span class="c"># Because the block size is one chunk, the number of blocks needed is</span>
+        <span class="c"># just the number of parity chunks we want.</span>
+        <span class="n">blocks_needed</span> <span class="o">=</span> <span class="n">parity_count</span>
+        <span class="n">par2_create</span><span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="n">blocks_needed</span><span class="p">,</span> <span class="n">parity_count</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;par2&#39;</span><span class="p">):</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">ClientChunk</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">chunk_path</span><span class="p">)</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">parity</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">firstwd</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="append_checksum"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.append_checksum">[docs]</a><span class="k">def</span> <span class="nf">append_checksum</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;append crc32 checksum to file&quot;&quot;&quot;</span>
+
+    <span class="n">cksum</span> <span class="o">=</span> <span class="n">calc_file_crc32</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;ab&#39;</span><span class="p">)</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">struct</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="s">&#39;&lt;I&#39;</span><span class="p">,</span> <span class="n">cksum</span><span class="p">))</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="calc_chunk_sizes"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.calc_chunk_sizes">[docs]</a><span class="k">def</span> <span class="nf">calc_chunk_sizes</span><span class="p">(</span><span class="n">data_size</span><span class="p">,</span> <span class="n">min_chunk_size</span><span class="o">=</span><span class="n">CHUNK_SIZE_MIN</span> <span class="o">-</span> <span class="mi">4</span><span class="p">,</span>
+                     <span class="n">tgt_chunk_size</span><span class="o">=</span><span class="n">CHUNK_SIZE_TGT</span> <span class="o">-</span> <span class="mi">4</span><span class="p">,</span>
+                     <span class="n">max_chunk_size</span><span class="o">=</span><span class="n">CHUNK_SIZE_MAX</span> <span class="o">-</span> <span class="mi">4</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Figure out the best chunk size</span>
+
+<span class="sd">    subtract 4 to leave room for the 4 byte checksum</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;data size is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">data_size</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;calculating chunk sizes&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data_size</span> <span class="o">&lt;</span> <span class="n">min_chunk_size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">min_chunk_size</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">data_size</span>  <span class="o">&lt;=</span> <span class="n">tgt_chunk_size</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">data_size</span><span class="p">]</span>
+    <span class="c"># so now, we&#39;re only dealing with sizes &gt; target size</span>
+    <span class="n">chunk_count</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">direction</span> <span class="o">=</span> <span class="s">&#39;up&#39;</span>
+    <span class="n">changed_direction</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">chunk_size</span> <span class="o">=</span> <span class="n">data_size</span> <span class="o">*</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">chunk_count</span>
+        <span class="n">margin</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">tgt_chunk_size</span> <span class="o">-</span> <span class="n">chunk_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">chunk_size</span> <span class="o">==</span> <span class="n">tgt_chunk_size</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[</span><span class="n">tgt_chunk_size</span><span class="p">,]</span> <span class="o">*</span> <span class="n">chunk_count</span>
+        <span class="k">elif</span> <span class="n">changed_direction</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">margin</span> <span class="o">&gt;=</span> <span class="n">last_margin</span><span class="p">:</span>
+                <span class="n">chunk_count</span> <span class="o">=</span> <span class="n">last_chunk_count</span>
+            <span class="k">break</span>
+        <span class="k">elif</span> <span class="n">chunk_size</span> <span class="o">&gt;=</span> <span class="n">max_chunk_size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;down&#39;</span><span class="p">:</span>
+                <span class="n">changed_direction</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="s">&#39;up&#39;</span>
+            <span class="n">last_margin</span> <span class="o">=</span> <span class="n">margin</span>
+            <span class="n">last_chunk_count</span> <span class="o">=</span> <span class="n">chunk_count</span>
+        <span class="k">elif</span> <span class="n">chunk_size</span> <span class="o">&lt;=</span> <span class="n">min_chunk_size</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;up&#39;</span><span class="p">:</span>
+                <span class="n">changed_direction</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="s">&#39;down&#39;</span>
+            <span class="n">last_margin</span> <span class="o">=</span> <span class="n">margin</span>
+            <span class="n">last_chunk_count</span> <span class="o">=</span> <span class="n">chunk_count</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">last_margin</span> <span class="o">=</span> <span class="n">margin</span>
+            <span class="n">last_chunk_count</span> <span class="o">=</span> <span class="n">chunk_count</span>
+            <span class="k">if</span> <span class="n">tgt_chunk_size</span> <span class="o">&lt;</span> <span class="n">chunk_size</span> <span class="o">&lt;</span> <span class="n">max_chunk_size</span> <span class="ow">and</span> \
+                                                        <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;down&#39;</span><span class="p">:</span>
+                <span class="c"># a little bigger than we&#39;d like (need more pieces)</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="s">&#39;up&#39;</span>
+                <span class="n">changed_direction</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">elif</span> <span class="n">min_chunk_size</span> <span class="o">&lt;=</span> <span class="n">chunk_size</span> <span class="o">&lt;</span> <span class="n">tgt_chunk_size</span> <span class="ow">and</span> \
+                                                        <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;up&#39;</span><span class="p">:</span>
+                <span class="c"># a bit too small (try fewer pieces)</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="s">&#39;down&#39;</span>
+                <span class="n">changed_direction</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;up&#39;</span><span class="p">:</span>
+            <span class="n">chunk_count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">direction</span> <span class="o">==</span> <span class="s">&#39;down&#39;</span><span class="p">:</span>
+            <span class="n">chunk_count</span> <span class="o">-=</span> <span class="mi">1</span>
+
+    <span class="c"># Create the list of chunk sizes. Spread out the rounding difference among</span>
+    <span class="c"># the chunks so that they&#39;re close to the same size.</span>
+    <span class="n">chunk_size_raw</span> <span class="o">=</span> <span class="n">data_size</span> <span class="o">*</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">chunk_count</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;unrounded chunk size is </span><span class="si">%s</span><span class="s"> &#39;</span> <span class="o">%</span> <span class="n">chunk_size_raw</span><span class="p">)</span>
+    <span class="n">chunk_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">chunk_size_raw</span><span class="p">))</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;rounded chunk size is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_size</span><span class="p">)</span>
+    <span class="n">total_round_diff</span> <span class="o">=</span> <span class="n">data_size</span> <span class="o">-</span> <span class="n">chunk_size</span> <span class="o">*</span> <span class="n">chunk_count</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> rounded bytes to distribute among </span><span class="si">%s</span><span class="s"> chunks&#39;</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span> <span class="o">%</span> <span class="p">(</span><span class="n">total_round_diff</span><span class="p">,</span> <span class="n">chunk_count</span><span class="p">))</span>
+    <span class="c"># Round it to a full byte.  If it&#39;s negative, round down because rounding</span>
+    <span class="c"># up will take away too many chunks.</span>
+    <span class="k">if</span> <span class="n">total_round_diff</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">total_round_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">total_round_diff</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">total_round_diff</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">total_round_diff</span><span class="p">))</span>
+    <span class="n">round_diff_sum</span> <span class="o">=</span> <span class="n">total_round_diff</span>
+    <span class="n">chunk_sizes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chunk_count</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">round_diff_sum</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">this_chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">round_diff_sum</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">round_diff_sum</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">this_chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span> <span class="o">-</span> <span class="mi">1</span>
+            <span class="n">round_diff_sum</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">this_chunk_size</span> <span class="o">=</span> <span class="n">chunk_size</span>
+        <span class="n">chunk_sizes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">this_chunk_size</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">data_size</span> <span class="o">==</span> <span class="nb">sum</span><span class="p">(</span><span class="n">chunk_sizes</span><span class="p">),</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s">&#39;</span> <span class="p">(</span><span class="n">data_size</span><span class="p">,</span>
+                                                    <span class="nb">sum</span><span class="p">(</span><span class="n">chunk_sizes</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">chunk_sizes</span>
+</div>
+<div class="viewcode-block" id="par2_create"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.par2_create">[docs]</a><span class="k">def</span> <span class="nf">par2_create</span><span class="p">(</span><span class="n">block_size</span><span class="p">,</span> <span class="n">blocks_needed</span><span class="p">,</span> <span class="n">parity_count</span><span class="p">):</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;scatterbytes.chunk.par2&#39;</span><span class="p">)</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;par2create&#39;</span><span class="p">,</span> <span class="s">&#39;-s</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">block_size</span><span class="p">,</span> <span class="s">&#39;-c</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">blocks_needed</span><span class="p">,</span>
+               <span class="s">&#39;-n</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">parity_count</span><span class="p">,</span> <span class="s">&#39;-u&#39;</span><span class="p">,</span> <span class="s">&#39;p.par2&#39;</span><span class="p">,</span> <span class="s">&#39;*&#39;</span><span class="p">]</span>
+    <span class="c"># for now, don&#39;t bother intercepting stdout/stderr</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="s">&#39;p.par2&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="par2_repair"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.par2_repair">[docs]</a><span class="k">def</span> <span class="nf">par2_repair</span><span class="p">(</span><span class="n">parfile_names</span><span class="p">):</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s">&#39;scatterbytes.chunk.par2&#39;</span><span class="p">)</span>
+    <span class="n">cmd</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;par2&#39;</span><span class="p">,</span> <span class="s">&#39;repair&#39;</span><span class="p">]</span>
+    <span class="n">cmd</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">parfile_names</span><span class="p">)</span>
+    <span class="c"># for now, don&#39;t bother intersepting stdout/stderr</span>
+    <span class="n">subprocess</span><span class="o">.</span><span class="n">check_call</span><span class="p">(</span><span class="n">cmd</span><span class="p">)</span>
+
+<span class="c"># thanks jimmyg.org</span>
+</div>
+<div class="viewcode-block" id="whereis"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.whereis">[docs]</a><span class="k">def</span> <span class="nf">whereis</span><span class="p">(</span><span class="n">program</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;PATH&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">program</span><span class="p">))</span> <span class="ow">and</span> \
+                            <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">program</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">program</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="has_par2"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.chunk.has_par2">[docs]</a><span class="k">def</span> <span class="nf">has_par2</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">whereis</span><span class="p">(</span><span class="s">&#39;par2&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

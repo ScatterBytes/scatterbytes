@@ -1,0 +1,910 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.storage.node &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.storage.node</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.storage.node</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;Storage Node</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">with_statement</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">gzip</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">itemgetter</span>
+<span class="kn">from</span> <span class="nn">..config</span> <span class="kn">import</span> <span class="n">ConfigBase</span><span class="p">,</span> <span class="n">find_config_dir</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">..util</span> <span class="kn">import</span> <span class="n">FamilyThread</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">crypt</span>
+<span class="kn">from</span> <span class="nn">..node</span> <span class="kn">import</span> <span class="n">UserNode</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">ChunkChecksumError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">RequestExpiredError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">OutOfStorageError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">ChunkError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">ChunkNotFoundError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">AuthenticationError</span>
+<span class="kn">from</span> <span class="nn">..chunk</span> <span class="kn">import</span> <span class="n">Chunk</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">PROTOCOL_VERSION</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">SOFTWARE_VERSION</span>
+
+<span class="c"># A chunk should never exceed two megabytes in size.</span>
+<span class="n">CHUNK_SIZE_MAX</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="mi">30</span>
+
+<span class="c"># Give enough time for relays from the control node.</span>
+<span class="n">TS_STRAY_PAST</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="c"># Timestamps should not be in the future (by much).</span>
+<span class="n">TS_STRAY_FUTURE</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+
+<span class="c"># Absolutely no relayed commands older than one hour.</span>
+<span class="n">SIGNATURE_TS_DELTA_MAX</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+
+<span class="n">VALID_CHUNK_NAME_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;C-[A-Z2-7]{13}&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_datetime"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.get_datetime">[docs]</a><span class="k">def</span> <span class="nf">get_datetime</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">util</span><span class="o">.</span><span class="n">control_node_time</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="verify_relay_command"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.verify_relay_command">[docs]</a><span class="k">def</span> <span class="nf">verify_relay_command</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">exclude_sigchecks</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="c"># Message will be signed and sender and receiver will be present.</span>
+    <span class="c"># This instance should be the receiver while the cert identity</span>
+    <span class="c"># should match the sender.</span>
+    <span class="c"># args looks like this:</span>
+    <span class="c"># args[0] == caller certificate info (dict with serial_number and CN)</span>
+    <span class="c"># args[1] == signature</span>
+    <span class="c"># args[2] == signature_ts</span>
+    <span class="c"># args[3] == expire_time</span>
+    <span class="c"># After inserting the serial numbers, the argument construct shall be as</span>
+    <span class="c"># follows.</span>
+    <span class="c"># sig_args[0] == signature_ts</span>
+    <span class="c"># sig_args[1] == sender_serial_number</span>
+    <span class="c"># sig_args[2] == receiver_serial_number</span>
+    <span class="c"># sig_args[3] == expire_time</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">cert_info</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c"># signature = args[1]</span>
+    <span class="c"># signature_ts = args[2]</span>
+    <span class="n">expire_time</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    <span class="c"># construct signature args which include cert serial numbers</span>
+    <span class="n">sig_args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
+    <span class="n">sig_args</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">cert_info</span><span class="p">[</span><span class="s">&#39;serial_number&#39;</span><span class="p">])</span>
+    <span class="n">sig_args</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">certificate</span><span class="o">.</span><span class="n">serial_number</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">expire_time</span> <span class="o">&lt;</span> <span class="n">get_datetime</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">RequestExpiredError</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="c"># should be signed by the relay command signer</span>
+        <span class="n">relay_command_cert</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">get_certificate</span><span class="p">(</span><span class="s">&#39;relay_command_signer&#39;</span><span class="p">)</span>
+        <span class="n">sigkey</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">SigKey</span><span class="p">(</span><span class="n">relay_command_cert</span><span class="o">.</span><span class="n">public_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">exclude_sigchecks</span><span class="p">:</span>
+            <span class="c"># include sig_ts and expire_time by default</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="n">arg</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">4</span><span class="p">:]):</span>
+                <span class="n">position</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">position</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">exclude_sigchecks</span><span class="p">:</span>
+                    <span class="n">sig_args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sig_args</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">4</span><span class="p">:])</span>
+        <span class="n">sigkey</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">sig_args</span><span class="p">)</span>
+        <span class="c"># signature matched - sender and receiver verified along with method</span>
+        <span class="c"># arguments</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">AuthenticationError</span>
+
+</div>
+<div class="viewcode-block" id="publish"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.publish">[docs]</a><span class="k">def</span> <span class="nf">publish</span><span class="p">(</span><span class="n">relay</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">exclude_sigchecks</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">pass_cert</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span>
+            <span class="n">restricted</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Define publishing attributes.</span>
+
+<span class="sd">    relay</span>
+<span class="sd">        a call relayed from control node</span>
+
+<span class="sd">    exclude_sigchecks</span>
+<span class="sd">        position of arguments not signed</span>
+
+<span class="sd">    pass_cert</span>
+<span class="sd">        pass certificate information to method</span>
+
+<span class="sd">    restricted</span>
+<span class="sd">        should only be called by control node or via relay</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">publish_inner</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">newf</span><span class="p">(</span><span class="n">storage_node</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="c"># first argument is always the public certificate</span>
+            <span class="n">caller_cert_info</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">relay</span><span class="p">:</span>
+                <span class="n">verify_relay_command</span><span class="p">(</span><span class="n">storage_node</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">exclude_sigchecks</span><span class="p">)</span>
+                <span class="n">method_args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">4</span><span class="p">:]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># only the control node should call</span>
+                <span class="k">if</span> <span class="n">restricted</span> <span class="ow">and</span> <span class="n">caller_cert_info</span><span class="p">[</span><span class="s">&#39;CN&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s">&#39;Control Node&#39;</span><span class="p">:</span>
+                    <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;got </span><span class="si">%s</span><span class="s"> instead of </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                        <span class="n">caller_cert_info</span><span class="p">[</span><span class="s">&#39;CN&#39;</span><span class="p">],</span>
+                        <span class="s">&#39;Control Node&#39;</span>
+                    <span class="p">)</span>
+                    <span class="k">raise</span> <span class="n">AuthenticationError</span><span class="p">(</span><span class="n">emsg</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">pass_cert</span><span class="p">:</span>
+                    <span class="n">method_args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[:]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">method_args</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">storage_node</span><span class="p">,</span> <span class="o">*</span><span class="n">method_args</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">response</span>
+        <span class="n">newf</span><span class="o">.</span><span class="n">published</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">newf</span><span class="o">.</span><span class="n">relay</span> <span class="o">=</span> <span class="n">relay</span>
+        <span class="k">return</span> <span class="n">newf</span>
+    <span class="k">return</span> <span class="n">publish_inner</span>
+
+</div>
+<div class="viewcode-block" id="StorageChunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageChunk">[docs]</a><span class="k">class</span> <span class="nc">StorageChunk</span><span class="p">(</span><span class="n">Chunk</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_path</span><span class="p">):</span>
+        <span class="n">Chunk</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_path</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="SendingJob"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingJob">[docs]</a><span class="k">class</span> <span class="nc">SendingJob</span><span class="p">(</span><span class="n">FamilyThread</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transfer_data</span><span class="p">,</span> <span class="n">proxy_creator</span><span class="p">):</span>
+        <span class="n">FamilyThread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transfer_data</span> <span class="o">=</span> <span class="n">transfer_data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proxy_creator</span> <span class="o">=</span> <span class="n">proxy_creator</span>
+
+<div class="viewcode-block" id="SendingJob.send_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingJob.send_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">send_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;executing send&#39;</span><span class="p">)</span>
+        <span class="n">transfer_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_data</span>
+        <span class="n">transfer_name</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;transfer_name&#39;</span><span class="p">]</span>
+        <span class="n">chunk_name</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">]</span>
+        <span class="n">expire_time</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;expire_time&#39;</span><span class="p">]</span>
+        <span class="n">signature</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;signature&#39;</span><span class="p">]</span>
+        <span class="n">signature_ts</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;signature_ts&#39;</span><span class="p">]</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;chunk&#39;</span><span class="p">]</span>
+        <span class="n">chunk_f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">signature</span><span class="p">,</span> <span class="n">signature_ts</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span>
+            <span class="n">chunk_f</span>
+        <span class="p">]</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proxy_creator</span><span class="p">(</span><span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;uri&#39;</span><span class="p">])</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;calling proxy store_chunk with args </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">proxy</span><span class="o">.</span><span class="n">store_chunk</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SendingJob.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingJob.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_chunk</span><span class="p">()</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;send failed&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="SendingQueue"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingQueue">[docs]</a><span class="k">class</span> <span class="nc">SendingQueue</span><span class="p">(</span><span class="n">FamilyThread</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;manages queue of chunks to send</span>
+
+<span class="sd">    This thread will not run in daemon mode and the parent process should wait</span>
+<span class="sd">    on it to finish before exiting.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">sleep_period</span> <span class="o">=</span> <span class="mf">2.0</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">proxy_creator</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">shutdown_event</span><span class="p">,</span>
+                 <span class="n">concurrent_max</span><span class="o">=</span><span class="mi">3</span><span class="p">):</span>
+        <span class="n">FamilyThread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_queue_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job_queue</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">concurrent_max</span> <span class="o">=</span> <span class="n">concurrent_max</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proxy_creator</span> <span class="o">=</span> <span class="n">proxy_creator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span> <span class="o">=</span> <span class="n">shutdown_event</span>
+
+    <span class="k">def</span> <span class="nf">_clear_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># clean up</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">j</span><span class="o">.</span><span class="n">is_alive</span><span class="p">():</span>
+                <span class="n">j</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">j</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SendingQueue.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingQueue.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_clear_jobs</span><span class="p">()</span>
+            <span class="c"># start new jobs</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_queue_lock</span><span class="p">:</span>
+                <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_queue</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">concurrent_max</span><span class="p">:</span>
+                    <span class="n">now</span> <span class="o">=</span> <span class="n">get_datetime</span><span class="p">()</span>
+                    <span class="c"># make sure it hasn&#39;t expired</span>
+                    <span class="n">job_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_queue</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">job_info</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">now</span><span class="p">:</span>
+                        <span class="c"># expired</span>
+                        <span class="k">continue</span>
+                    <span class="n">transfer_data</span> <span class="o">=</span> <span class="n">job_info</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;creating send job for </span><span class="si">%s</span><span class="s"> &quot;</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">%</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;transfer_name&#39;</span><span class="p">]</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+                    <span class="n">job</span> <span class="o">=</span> <span class="n">SendingJob</span><span class="p">(</span><span class="n">transfer_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_proxy</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+                    <span class="n">job</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sleep_period</span><span class="p">)</span>
+        <span class="c"># make sure jobs are clear before exiting</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;send queue is clearing jobs before shutdown&#39;</span><span class="p">)</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_clear_jobs</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="o">.</span><span class="mi">5</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;send queue is exiting&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="SendingQueue.create_proxy"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingQueue.create_proxy">[docs]</a>    <span class="k">def</span> <span class="nf">create_proxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">proxy_creator</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">proxy</span>
+</div>
+<div class="viewcode-block" id="SendingQueue.add"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.SendingQueue.add">[docs]</a>    <span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transfer_data</span><span class="p">,</span> <span class="n">priority</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;adding transfer </span><span class="si">%s</span><span class="s"> with priority </span><span class="si">%s</span><span class="s">&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">%</span> <span class="p">(</span><span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;transfer_name&#39;</span><span class="p">],</span> <span class="n">priority</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">expire_time</span> <span class="o">=</span> <span class="n">transfer_data</span><span class="p">[</span><span class="s">&#39;expire_time&#39;</span><span class="p">]</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_queue_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_queue</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">priority</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span> <span class="n">transfer_data</span><span class="p">))</span>
+            <span class="c"># sort by priority, then time entered.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">job_queue</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+</div></div>
+<div class="viewcode-block" id="TaskScheduler"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.TaskScheduler">[docs]</a><span class="k">class</span> <span class="nc">TaskScheduler</span><span class="p">(</span><span class="n">FamilyThread</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">shutdown_event</span><span class="p">,</span> <span class="n">tasks</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">FamilyThread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tasks</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span> <span class="o">=</span> <span class="n">tasks</span>
+        <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">:</span>
+            <span class="n">task</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span> <span class="o">=</span> <span class="n">shutdown_event</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<div class="viewcode-block" id="TaskScheduler.get_value"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.TaskScheduler.get_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="s">&quot;get a value shared between tasks or threads&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict_lock</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TaskScheduler.set_value"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.TaskScheduler.set_value">[docs]</a>    <span class="k">def</span> <span class="nf">set_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;set a value shared between tasks or threads&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_shared_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+</div>
+<div class="viewcode-block" id="TaskScheduler.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.TaskScheduler.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">shutdown</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="n">shutdown</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tasks</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">task_name</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span>
+                    <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">is_time_to_run</span><span class="p">():</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;running task </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">task_name</span><span class="p">)</span>
+                        <span class="n">t</span><span class="o">.</span><span class="n">run_task</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;error in task: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">shutdown</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+                    <span class="k">break</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="Task"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task">[docs]</a><span class="k">class</span> <span class="nc">Task</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="o">=</span> <span class="n">period</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_run</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="Task.get_value"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task.get_value">[docs]</a>    <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="s">&quot;get a value shared between tasks or threads&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Task.set_value"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task.set_value">[docs]</a>    <span class="k">def</span> <span class="nf">set_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="s">&quot;set a value shared between tasks or threads&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Task.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+</div>
+<div class="viewcode-block" id="Task.run_task"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task.run_task">[docs]</a>    <span class="k">def</span> <span class="nf">run_task</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_run</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="Task.is_time_to_run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.Task.is_time_to_run">[docs]</a>    <span class="k">def</span> <span class="nf">is_time_to_run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_run</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_run</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">True</span>
+        <span class="k">return</span> <span class="bp">False</span>
+
+</div></div>
+<div class="viewcode-block" id="RegistrationTask"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.RegistrationTask">[docs]</a><span class="k">class</span> <span class="nc">RegistrationTask</span><span class="p">(</span><span class="n">Task</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Register and keep address/port updated.</span>
+
+<span class="sd">    After initial registration, status will not be updated.  It takes some time</span>
+<span class="sd">    for the server to check the connectivity.  The status will be updated on</span>
+<span class="sd">    subsequent registrations.  The status will be updated on subsequent</span>
+<span class="sd">    registrations.  The status will be updated on subsequent registrations.</span>
+<span class="sd">    The status will be updated on subsequent registrations.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_node</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">60</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_node</span> <span class="o">=</span> <span class="n">storage_node</span>
+        <span class="n">Task</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">period</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RegistrationTask.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.RegistrationTask.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_node</span><span class="o">.</span><span class="n">control_node_proxy</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage_node</span><span class="o">.</span><span class="n">config</span>
+        <span class="n">last_status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">&#39;status&#39;</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">register</span><span class="p">(</span><span class="n">proxy</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;status&#39;</span><span class="p">]</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;address&#39;</span><span class="p">]</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;port&#39;</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;server is connecting to </span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+        <span class="c">#  *** status for storage nodes ***</span>
+        <span class="c"># available</span>
+        <span class="c"># unavailable - offline due to proper shutdown</span>
+        <span class="c"># unreachable</span>
+        <span class="c"># recovery required</span>
+        <span class="c"># recovery in progress</span>
+        <span class="c"># If recovery is pending, need to inventory and upload chunks.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="s">&#39;status&#39;</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">last_status</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">==</span> <span class="s">&#39;unreachable&#39;</span><span class="p">:</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;listen_port&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+            <span class="n">emsg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;Your storage node cannot be reached on port </span><span class="si">%(port)s</span><span class="s">. &#39;</span>
+                    <span class="s">&#39;If you are behind NAT, configure it to send port &#39;</span>
+                    <span class="s">&#39;</span><span class="si">%(port)s</span><span class="s"> to your server.&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span> <span class="o">%</span> <span class="nb">dict</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;last status: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">last_status</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;current status: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">status</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="CheckFileIntegrityTask"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.CheckFileIntegrityTask">[docs]</a><span class="k">class</span> <span class="nc">CheckFileIntegrityTask</span><span class="p">(</span><span class="n">Task</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_node</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_node</span> <span class="o">=</span> <span class="n">storage_node</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_list</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_directory</span> <span class="o">=</span> <span class="n">storage_node</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_period</span> <span class="o">=</span> <span class="mi">3600</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_refresh_time</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">Task</span><span class="o">.</span><span class="n">init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">period</span><span class="o">=</span><span class="n">period</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CheckFileIntegrityTask.update_file_list"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.CheckFileIntegrityTask.update_file_list">[docs]</a>    <span class="k">def</span> <span class="nf">update_file_list</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_directory</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                <span class="c"># make sure the filename looks valid</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">VALID_CHUNK_NAME_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;invalid filename </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">file_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_refresh_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="CheckFileIntegrityTask.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.CheckFileIntegrityTask.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_refresh_time</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">or</span> \
+                <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_refresh_time</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_period</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_file_list</span><span class="p">()</span>
+        <span class="n">corrupt_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">chunk_path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_list</span><span class="p">:</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">StorageChunk</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">ChunkChecksumError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;chunk </span><span class="si">%s</span><span class="s"> failed crc32 check&#39;</span> <span class="o">%</span> <span class="n">chunk_path</span><span class="p">)</span>
+                <span class="n">corrupt_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;unexpected error occurred for file </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_path</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">corrupt_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">corrupt_files</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;stub - replace corrupt files&#39;</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="get_mbytes_available"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.get_mbytes_available">[docs]</a><span class="k">def</span> <span class="nf">get_mbytes_available</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="n">storage_dir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">)</span>
+    <span class="n">reserve</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;reserve_storage&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">reserve</span><span class="p">:</span>
+        <span class="n">reserve</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">mbytes_avail</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">get_available_storage</span><span class="p">(</span><span class="n">storage_dir</span><span class="p">)</span>
+    <span class="n">mbytes_avail</span> <span class="o">=</span> <span class="n">mbytes_avail</span> <span class="o">-</span> <span class="n">reserve</span>
+    <span class="k">return</span> <span class="n">mbytes_avail</span>
+
+</div>
+<div class="viewcode-block" id="register"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.register">[docs]</a><span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;listen_port&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+    <span class="n">user_agent</span> <span class="o">=</span> <span class="s">&#39;ScatterBytes Python Client </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">SOFTWARE_VERSION</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">port</span><span class="p">,</span> <span class="n">PROTOCOL_VERSION</span><span class="p">,</span> <span class="n">user_agent</span><span class="p">,</span> <span class="n">get_mbytes_available</span><span class="p">(</span><span class="n">config</span><span class="p">)]</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;registering with args </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">args</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">control_node_proxy</span><span class="o">.</span><span class="n">register_storage_node</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">response</span>
+
+</div>
+<div class="viewcode-block" id="unregister"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.unregister">[docs]</a><span class="k">def</span> <span class="nf">unregister</span><span class="p">(</span><span class="n">control_node_proxy</span><span class="p">):</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;unregistering&#39;</span><span class="p">)</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="n">control_node_proxy</span><span class="o">.</span><span class="n">unregister_storage_node</span><span class="p">()</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;status&#39;</span><span class="p">]</span>
+    <span class="c"># should be unavailable</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;status is: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">status</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="StorageNode"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode">[docs]</a><span class="k">class</span> <span class="nc">StorageNode</span><span class="p">(</span><span class="n">UserNode</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;node that stores data chunks for the clients</span>
+
+<span class="sd">    control_node_proxy</span>
+<span class="sd">      proxy to the control node</span>
+
+<span class="sd">    sending_queue</span>
+<span class="sd">      queue used to prioritize outgoing chunks</span>
+
+<span class="sd">    task_scheduler</span>
+<span class="sd">      schedules background tasks</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span> <span class="o">=</span> <span class="n">control_node_proxy</span>
+        <span class="c"># Fixme - creator just takes uri</span>
+        <span class="k">if</span> <span class="n">snode_proxy_creator</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">snode_proxy_creator</span> <span class="o">=</span> <span class="n">StorageNode</span>
+        <span class="n">UserNode</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">startup_registration_updater</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">startup_sending_queue</span> <span class="o">=</span> <span class="bp">True</span>
+
+<div class="viewcode-block" id="StorageNode.get_mbytes_available"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.get_mbytes_available">[docs]</a>    <span class="k">def</span> <span class="nf">get_mbytes_available</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_mbytes_available</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageNode.startup"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.startup">[docs]</a>    <span class="k">def</span> <span class="nf">startup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Start threads that did not start on init.</span>
+
+<span class="sd">        For instance, registration shouldn&#39;t begin until the HTTPS server is</span>
+<span class="sd">        listening.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">loaded_certificates</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_certificates</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;starting sending queue and task scheduler&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">startup_sending_queue</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span> <span class="o">=</span> <span class="n">SendingQueue</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">startup_registration_updater</span><span class="p">:</span>
+            <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RegistrationTask</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+        <span class="c"># #tasks.append(CheckFileIntegrityTask(self))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_scheduler</span> <span class="o">=</span> <span class="n">TaskScheduler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span><span class="p">,</span> <span class="n">tasks</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">task_scheduler</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="StorageNode.shutdown"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.shutdown">[docs]</a>    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Execute cleanup operations for shutdown.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># Make sure we don&#39;t try to register after unregistering.</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;shutting down storage node&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;shutdown_event&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;task_scheduler&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_scheduler</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">task_scheduler</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">unregister</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;unable to unregister&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;clean shutdown&#39;</span><span class="p">)</span>
+</div>
+    <span class="nd">@publish</span><span class="p">(</span><span class="n">pass_cert</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">restricted</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<div class="viewcode-block" id="StorageNode.hello"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.hello">[docs]</a>    <span class="k">def</span> <span class="nf">hello</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cert_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Say hello with certificate&#39;s CN</span>
+
+<span class="sd">        Used to determine if host is reachable.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;Hello </span><span class="si">%s</span><span class="s">!&quot;</span> <span class="o">%</span> <span class="n">cert_info</span><span class="p">[</span><span class="s">&#39;CN&#39;</span><span class="p">]</span>
+</div>
+    <span class="nd">@publish</span><span class="p">(</span><span class="n">pass_cert</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">restricted</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="viewcode-block" id="StorageNode.echo"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.echo">[docs]</a>    <span class="k">def</span> <span class="nf">echo</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cert_info</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;echo msg with certificate&#39;s CN</span>
+
+<span class="sd">        Used to determine if host is reachable.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> says: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">cert_info</span><span class="p">[</span><span class="s">&#39;CN&#39;</span><span class="p">],</span> <span class="n">msg</span><span class="p">)</span>
+</div>
+    <span class="nd">@publish</span><span class="p">()</span>
+<div class="viewcode-block" id="StorageNode.send_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.send_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">send_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">dest_uri</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">,</span>
+                   <span class="n">priority</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">signature_ts</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;request to send chunk </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_chunk</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+        <span class="n">transfer_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;signature&#39;</span><span class="p">:</span> <span class="n">signature</span><span class="p">,</span>
+            <span class="s">&#39;signature_ts&#39;</span><span class="p">:</span> <span class="n">signature_ts</span><span class="p">,</span>
+            <span class="s">&#39;expire_time&#39;</span><span class="p">:</span> <span class="n">expire_time</span><span class="p">,</span>
+            <span class="s">&#39;transfer_name&#39;</span><span class="p">:</span> <span class="n">transfer_name</span><span class="p">,</span>
+            <span class="s">&#39;chunk_name&#39;</span><span class="p">:</span> <span class="n">chunk_name</span><span class="p">,</span>
+            <span class="s">&#39;uri&#39;</span><span class="p">:</span> <span class="n">dest_uri</span><span class="p">,</span>
+            <span class="s">&#39;chunk&#39;</span><span class="p">:</span> <span class="n">chunk</span>
+        <span class="p">}</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got request to send chunk: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">transfer_data</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sending_queue</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">transfer_data</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;OK&#39;</span>
+</div>
+    <span class="nd">@publish</span><span class="p">(</span><span class="n">relay</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">exclude_sigchecks</span><span class="o">=</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span> <span class="p">])</span>
+<div class="viewcode-block" id="StorageNode.store_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.store_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">store_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Store data chunk from a client or storage node.</span>
+
+<span class="sd">        transfer_name</span>
+<span class="sd">            ID assigned to this transfer by the control node</span>
+
+<span class="sd">        chunk_file</span>
+<span class="sd">            A file like object where the chunk data can be read.</span>
+
+<span class="sd">        chunk_name</span>
+<span class="sd">            Name to use on the filesystem.</span>
+
+
+<span class="sd">        This can be a storage request from either a client node or another</span>
+<span class="sd">        storage node. In either case, the transfer is authorized by the</span>
+<span class="sd">        control node by signing the request using this instance&#39;s public key.</span>
+
+<span class="sd">        A storage node should not report success until it has confirmed the</span>
+<span class="sd">        transfer with the control node.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="s">&#39;storing chunk </span><span class="si">%s</span><span class="s"> in transfer </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chunk_name</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">storage_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">)</span>
+        <span class="c"># Make sure there is enough room to store this.</span>
+        <span class="k">if</span> <span class="n">util</span><span class="o">.</span><span class="n">get_available_storage</span><span class="p">(</span><span class="n">storage_dir</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">OutOfStorageError</span>
+        <span class="n">chunk_name_tmp</span> <span class="o">=</span> <span class="s">&quot;tmp_transfer_</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">transfer_name</span>
+        <span class="n">chunk_path_tmp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">storage_dir</span><span class="p">,</span> <span class="n">chunk_name_tmp</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;writing to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_path_tmp</span><span class="p">)</span>
+        <span class="n">ftmp</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">chunk_path_tmp</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+        <span class="n">chunk_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_chunk_path</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">chunk_file</span><span class="p">,</span> <span class="n">ftmp</span><span class="p">)</span>
+            <span class="n">ftmp</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checking chunk&#39;</span><span class="p">)</span>
+            <span class="n">chunk_tmp</span> <span class="o">=</span> <span class="n">StorageChunk</span><span class="p">(</span><span class="n">chunk_path_tmp</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">chunk_tmp</span><span class="o">.</span><span class="n">size</span> <span class="o">&gt;</span> <span class="n">CHUNK_SIZE_MAX</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ChunkError</span><span class="p">(</span><span class="s">&#39;data size exceeds </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">CHUNK_SIZE_MAX</span><span class="p">)</span>
+            <span class="c"># crc32 checksum</span>
+            <span class="n">chunk_tmp</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+            <span class="n">chunk_hash</span> <span class="o">=</span> <span class="n">chunk_tmp</span><span class="o">.</span><span class="n">calc_hash</span><span class="p">()</span>
+            <span class="c"># move it to its final path before confirming</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">chunk_path_tmp</span><span class="p">,</span> <span class="n">chunk_path</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;stored to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_path</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checks OK. confirming transfer&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">confirm_transfer</span><span class="p">(</span>
+                <span class="n">transfer_name</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_hash</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">get_mbytes_available</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="s">&#39;OK&#39;</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">chunk_path_tmp</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">chunk_path_tmp</span><span class="p">)</span>
+</div>
+    <span class="nd">@publish</span><span class="p">()</span>
+<div class="viewcode-block" id="StorageNode.delete_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.delete_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">delete_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;request to delete chunk </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_name</span><span class="p">)</span>
+        <span class="c"># This will raise the appropriate error if it does not exist.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_chunk</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">chunk</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s">&#39;mbytes_available&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_mbytes_available</span><span class="p">()}</span>
+        <span class="k">except</span> <span class="n">ChunkNotFoundError</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;did not find chunk </span><span class="si">%s</span><span class="s"> for deletion&#39;</span> <span class="o">%</span> <span class="n">chunk_name</span><span class="p">)</span>
+            <span class="k">raise</span>
+</div>
+    <span class="nd">@publish</span><span class="p">()</span>
+<div class="viewcode-block" id="StorageNode.check_hash"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.check_hash">[docs]</a>    <span class="k">def</span> <span class="nf">check_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;compute a hash for chunk</span>
+
+<span class="sd">        This is the primary means for enforcing the integrity of a storage</span>
+<span class="sd">        node and also serves to confirm the node is available and functioning</span>
+<span class="sd">        properly.</span>
+
+<span class="sd">        The monitoring node may use a random salt and compare the result to that</span>
+<span class="sd">        of other nodes.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">salt</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">salt</span> <span class="o">=</span> <span class="n">chunk_name</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_chunk</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">chunk_hash</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">calc_hash</span><span class="p">(</span><span class="n">salt</span><span class="o">=</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">chunk_hash</span><span class="o">=</span><span class="n">chunk_hash</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span>
+</div>
+    <span class="nd">@publish</span><span class="p">(</span><span class="n">relay</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">exclude_sigchecks</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<div class="viewcode-block" id="StorageNode.retrieve_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.retrieve_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">retrieve_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">byte_start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">byte_end</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;looking for chunk </span><span class="si">%s</span><span class="s"> bytes </span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s"> bytes&#39;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">%</span> <span class="p">(</span><span class="n">chunk_name</span><span class="p">,</span> <span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">,</span> <span class="n">byte_end</span> <span class="o">-</span> <span class="n">byte_start</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="c"># byte_end is inclusive</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_chunk</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+        <span class="n">file_path</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">file_path</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+        <span class="n">file_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">fstat</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">fileno</span><span class="p">())</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="n">byte_range_size</span> <span class="o">=</span> <span class="n">byte_end</span> <span class="o">-</span> <span class="n">byte_start</span>
+        <span class="k">if</span> <span class="n">byte_range_size</span> <span class="o">&lt;</span> <span class="n">file_size</span><span class="p">:</span>
+            <span class="n">file_size</span> <span class="o">=</span> <span class="n">byte_range_size</span>
+        <span class="k">if</span> <span class="n">byte_end</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">file_reader</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">LimitedFileReader</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">file_reader</span> <span class="o">=</span> <span class="n">f</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">file_reader</span><span class="p">,</span> <span class="n">file_size</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageNode.confirm_transfer"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.confirm_transfer">[docs]</a>    <span class="k">def</span> <span class="nf">confirm_transfer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_hash</span><span class="p">,</span>
+                         <span class="n">mbytes_available</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Tell the control node the transfer is complete.</span>
+
+<span class="sd">        If the transfer exists, the control node could confirm it by seeing</span>
+<span class="sd">        who it was assigned to and verifying the signature.  Sending a node_id</span>
+<span class="sd">        allows it to log any confirmations on transfers that do not exist.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;confirming transfer </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">transfer_name</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">confirm_transfer</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">transfer_name</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_hash</span><span class="p">,</span> <span class="n">mbytes_available</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;transfer confirmed&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span>
+</div>
+<div class="viewcode-block" id="StorageNode.recover"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.recover">[docs]</a>    <span class="k">def</span> <span class="nf">recover</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">storage_directory</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">)</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">storage_directory</span><span class="p">,</span> <span class="s">&#39;recovery_info.gz&#39;</span><span class="p">)</span>
+        <span class="n">collect_recovery_info</span><span class="p">(</span><span class="n">storage_directory</span><span class="p">,</span> <span class="n">output_path</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">send_recovery_data</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StorageNode.status"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.status">[docs]</a>    <span class="k">def</span> <span class="nf">status</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">status</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s">&#39;task_scheduler&#39;</span><span class="p">):</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_scheduler</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="s">&#39;status&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">status</span>
+</div>
+<div class="viewcode-block" id="StorageNode.unregister"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.unregister">[docs]</a>    <span class="k">def</span> <span class="nf">unregister</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="s">&#39;available&#39;</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">unregister_storage_node</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">response</span>
+</div>
+<div class="viewcode-block" id="StorageNode.find_chunk_path"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNode.find_chunk_path">[docs]</a>    <span class="k">def</span> <span class="nf">find_chunk_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">find_chunk_path</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_get_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">):</span>
+        <span class="n">chunk_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">find_chunk_path</span><span class="p">(</span><span class="n">chunk_name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StorageChunk</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="StorageNodeConfig"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNodeConfig">[docs]</a><span class="k">class</span> <span class="nc">StorageNodeConfig</span><span class="p">(</span><span class="n">ConfigBase</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;StorageNode Configuration</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">config_name</span> <span class="o">=</span> <span class="s">&#39;storage_node.config&#39;</span>
+    <span class="n">log_filename</span> <span class="o">=</span> <span class="s">&#39;storage_node.log&#39;</span>
+    <span class="n">requests_log_filename</span> <span class="o">=</span> <span class="s">&#39;storage_node_requests.log&#39;</span>
+    <span class="n">search_dirs</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;/etc&#39;</span><span class="p">,</span> <span class="p">]</span>
+
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">ConfigBase</span><span class="o">.</span><span class="n">defaults</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+        <span class="s">&#39;listen_address&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="s">&#39;0.0.0.0&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">),</span>
+        <span class="s">&#39;listen_port&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s">&#39;network&#39;</span><span class="p">,</span> <span class="mi">8085</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">),</span>
+        <span class="c"># reserve 100 MB</span>
+        <span class="s">&#39;reserve_storage&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s">&#39;main&#39;</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="s">&#39;int&#39;</span><span class="p">),</span>
+    <span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_path</span><span class="p">,</span> <span class="n">use_config_paths</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="n">ConfigBase</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config_path</span><span class="p">,</span> <span class="n">use_config_paths</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config_path</span><span class="p">),</span> <span class="s">&#39;scatterbytes_files&#39;</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">find_config_dir</span><span class="p">(),</span> <span class="s">&#39;scatterbytes_files&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="mo">0750</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">modified</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">modified</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="StorageNodeConfig.requests_log_path"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNodeConfig.requests_log_path">[docs]</a>    <span class="k">def</span> <span class="nf">requests_log_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">log_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;log_dir&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">log_dir</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests_log_filename</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="StorageNodeConfig.find_chunk_path"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.StorageNodeConfig.find_chunk_path">[docs]</a>    <span class="k">def</span> <span class="nf">find_chunk_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Find the filesystem path to chunk_name.</span>
+
+<span class="sd">        To keep from overwhelming some filesystems (and users who may ask for</span>
+<span class="sd">        a directory listing), there are 32**2 directories.  Each chunk is put</span>
+<span class="sd">        into a directory based on the last two characters in its name. The</span>
+<span class="sd">        last characters are used because the base32 encoding may be left</span>
+<span class="sd">        padded, which would bias the directory contents.</span>
+
+<span class="sd">        1 TB of 1 MB chunks would therefore contain 1000 directories each</span>
+<span class="sd">        containing 1000 files.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;storage_directory&#39;</span><span class="p">),</span> <span class="n">chunk_name</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">chunk_name</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="nb">dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="nb">dir</span><span class="p">)</span>
+        <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">dir</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;chunk_path is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">chunk_path</span>
+</div></div>
+<span class="n">StorageNode</span><span class="o">.</span><span class="n">config_class</span> <span class="o">=</span> <span class="n">StorageNodeConfig</span>
+
+
+<div class="viewcode-block" id="create_storage_node"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.create_storage_node">[docs]</a><span class="k">def</span> <span class="nf">create_storage_node</span><span class="p">(</span><span class="n">control_node_proxy</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">snode_proxy_creator</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                        <span class="n">config</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="n">sn</span> <span class="o">=</span> <span class="n">StorageNode</span><span class="p">(</span><span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sn</span>
+
+</div>
+<div class="viewcode-block" id="collect_recovery_info"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.collect_recovery_info">[docs]</a><span class="k">def</span> <span class="nf">collect_recovery_info</span><span class="p">(</span><span class="n">storage_directory</span><span class="p">,</span> <span class="n">output_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Collect name and hash of every chunk and write it to a file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;collecting filenames and hashes for recovery&#39;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;This could take a while.  Please do not interrupt.&#39;</span><span class="p">)</span>
+    <span class="n">zfile</span> <span class="o">=</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">storage_directory</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">VALID_CHUNK_NAME_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;invalid filename </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="c"># don&#39;t report or delete anything but our files</span>
+                <span class="k">continue</span>
+            <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">StorageChunk</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+                <span class="nb">hash</span> <span class="o">=</span> <span class="n">chunk</span><span class="o">.</span><span class="n">calc_hash</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;unexpected error occurred for file </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">zfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s">,</span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">hash</span><span class="p">))</span>
+    <span class="n">zfile</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+</div>
+<div class="viewcode-block" id="IntegrityChecker"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.IntegrityChecker">[docs]</a><span class="k">class</span> <span class="nc">IntegrityChecker</span><span class="p">(</span><span class="n">FamilyThread</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;checks the integrity of stored files using crc32 checksum</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">storage_directory</span><span class="p">,</span> <span class="n">control_node_proxy</span><span class="p">):</span>
+        <span class="n">FamilyThread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">storage_directory</span> <span class="o">=</span> <span class="n">storage_directory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span> <span class="o">=</span> <span class="n">control_node_proxy</span>
+
+<div class="viewcode-block" id="IntegrityChecker.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.IntegrityChecker.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Integrity checks started.&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">checksum_files</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s">&#39;Integrity checks failed.&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;Integrity checks completed.&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="IntegrityChecker.checksum_files"><a class="viewcode-back" href="../../../apidoc/scatterbytes.storage.html#scatterbytes.storage.node.IntegrityChecker.checksum_files">[docs]</a>    <span class="k">def</span> <span class="nf">checksum_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">corrupt_files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">storage_directory</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                <span class="c"># make sure the filename looks valid</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">VALID_CHUNK_NAME_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;invalid filename </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">StorageChunk</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+                <span class="k">except</span> <span class="n">ChunkChecksumError</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;chunk </span><span class="si">%s</span><span class="s"> failed crc32 check&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="n">corrupt_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;unexpected error occurred for file </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">filename</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                    <span class="n">corrupt_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="c"># If there are corrupt files, they can be replaced.  A large number of</span>
+        <span class="c"># corrupt files indicates something may be terribly wrong.</span>
+        <span class="c"># If there are fewer than 10 corrupt files, try to replace them.</span>
+        <span class="c"># Otherwise, change status until this can be resolved.</span>
+        <span class="n">control_node_proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span>
+        <span class="k">if</span> <span class="n">corrupt_files</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">corrupt_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="p">(</span><span class="s">&quot;</span><span class="si">%s</span><span class="s"> corrupt files were detected. Recovery will not &quot;</span>
+                        <span class="s">&quot;be attempted because there is likely a problem &quot;</span>
+                        <span class="s">&quot;with the storage medium.&quot;</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">corrupt_files</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">control_node_proxy</span><span class="o">.</span><span class="n">replace_chunks</span><span class="p">(</span><span class="n">corrupt_files</span><span class="p">)</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> corrupt chunks detected. Requested replacements.&#39;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="n">emsg</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">corrupt_files</span><span class="p">))</span>
+            <span class="k">return</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

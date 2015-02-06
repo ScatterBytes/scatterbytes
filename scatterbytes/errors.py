@@ -64,6 +64,8 @@ class DownloadError(SBError): pass
 
 class UpdateError(SBError): pass
 
+class SignatureError(SBError): pass
+
 class EncryptionError(SBError): pass
 
 class TransferLogError(SBError):

@@ -1,0 +1,700 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.jsonrpc &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.jsonrpc</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.jsonrpc</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;JSON-RPC functionality</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span> <span class="k">as</span> <span class="n">DT</span>
+
+<span class="kn">import</span> <span class="nn">decimal</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">BaseHTTPServer</span> <span class="kn">import</span> <span class="n">BaseHTTPRequestHandler</span>
+<span class="kn">from</span> <span class="nn">json</span> <span class="kn">import</span> <span class="n">JSONEncoder</span><span class="p">,</span> <span class="n">JSONDecoder</span>
+<span class="kn">from</span> <span class="nn">urlparse</span> <span class="kn">import</span> <span class="n">urlparse</span>
+
+<span class="kn">import</span> <span class="nn">errors</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span><span class="p">,</span> <span class="n">https</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">FamilyThreadMixIn</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">datetime_from_string</span><span class="p">,</span> <span class="n">datetime_to_string</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">PROTOCOL_VERSION</span> <span class="o">=</span> <span class="s">&#39;0.8&#39;</span>
+
+
+<span class="n">datetime_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="s">r&#39;(\d{4})-(\d{2})-(\d{2})(T(\d{2}):(\d{2}):(\d{2}).(\d+))?&#39;</span>
+<span class="p">)</span>
+
+<span class="c"># Index SBError sublcasses to meet the JSONRPC standard.</span>
+<span class="c"># Must be an integer not predefined (-32768 to -32000)</span>
+
+<span class="n">sb_error_index</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="n">INIT_REQUEST_ID</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="gen_request_id"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.gen_request_id">[docs]</a><span class="k">def</span> <span class="nf">gen_request_id</span><span class="p">():</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span><span class="p">)</span> <span class="o">-</span> <span class="n">INIT_REQUEST_ID</span>
+
+</div>
+<div class="viewcode-block" id="create_sb_error_index"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.create_sb_error_index">[docs]</a><span class="k">def</span> <span class="nf">create_sb_error_index</span><span class="p">(</span><span class="n">error_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;base the integer index on the name&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">error_name</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">8</span><span class="p">],</span> <span class="mi">16</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="index_sb_errors"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.index_sb_errors">[docs]</a><span class="k">def</span> <span class="nf">index_sb_errors</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="n">errors</span><span class="p">):</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">errors</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">errors</span><span class="o">.</span><span class="n">SBError</span><span class="p">):</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">create_sb_error_index</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+            <span class="n">sb_error_index</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">o</span>
+</div>
+<span class="n">index_sb_errors</span><span class="p">()</span>
+
+
+<span class="c"># Define Errors</span>
+<span class="c"># ----------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="JSONRPCError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.JSONRPCError">[docs]</a><span class="k">class</span> <span class="nc">JSONRPCError</span><span class="p">(</span><span class="ne">StandardError</span><span class="p">):</span>
+    <span class="n">json_code</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;an error occurred&#39;</span>
+    <span class="n">json_data</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">msgs</span> <span class="o">=</span> <span class="nb">filter</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">json_message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">])</span>
+        <span class="k">return</span> <span class="s">&#39; - &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">repr</span><span class="p">,</span> <span class="n">msgs</span><span class="p">))</span>
+
+</div>
+<div class="viewcode-block" id="ParseError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ParseError">[docs]</a><span class="k">class</span> <span class="nc">ParseError</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32700</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Parse error&#39;</span>
+
+</div>
+<div class="viewcode-block" id="InvalidRequest"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.InvalidRequest">[docs]</a><span class="k">class</span> <span class="nc">InvalidRequest</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32600</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Invalid Request&#39;</span>
+
+</div>
+<div class="viewcode-block" id="MethodNotFound"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.MethodNotFound">[docs]</a><span class="k">class</span> <span class="nc">MethodNotFound</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32601</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Method not found&#39;</span>
+
+</div>
+<div class="viewcode-block" id="InvalidParams"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.InvalidParams">[docs]</a><span class="k">class</span> <span class="nc">InvalidParams</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32602</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Invalid params&#39;</span>
+
+</div>
+<div class="viewcode-block" id="InternalError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.InternalError">[docs]</a><span class="k">class</span> <span class="nc">InternalError</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32603</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Internal error&#39;</span>
+
+</div>
+<div class="viewcode-block" id="ServerError"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ServerError">[docs]</a><span class="k">class</span> <span class="nc">ServerError</span><span class="p">(</span><span class="n">JSONRPCError</span><span class="p">):</span>
+
+    <span class="n">json_code</span> <span class="o">=</span> <span class="o">-</span><span class="mi">32000</span>
+    <span class="n">json_message</span> <span class="o">=</span> <span class="s">&#39;Server error&#39;</span>
+
+
+<span class="c"># JSON-RPC Encode/Decode and Marshalling</span>
+<span class="c"># ----------------------------------------------------------------------------</span>
+
+</div>
+<div class="viewcode-block" id="SBJSONEncoder"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.SBJSONEncoder">[docs]</a><span class="k">class</span> <span class="nc">SBJSONEncoder</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONEncoder</span><span class="p">):</span>
+
+    <span class="n">DATE</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span>
+
+<div class="viewcode-block" id="SBJSONEncoder.default"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.SBJSONEncoder.default">[docs]</a>    <span class="k">def</span> <span class="nf">default</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">DT</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s">&#39;data_type&#39;</span><span class="p">:</span>  <span class="s">&#39;datetime&#39;</span><span class="p">,</span>
+                <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="n">datetime_to_string</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">DATE</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s">&#39;data_type&#39;</span><span class="p">:</span>  <span class="s">&#39;datetime&#39;</span><span class="p">,</span>
+                <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="n">datetime_to_string</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s">&#39;data_type&#39;</span><span class="p">:</span>  <span class="s">&#39;decimal&#39;</span><span class="p">,</span>
+                <span class="s">&#39;value&#39;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+            <span class="p">}</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">JSONRPCError</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s">&#39;code&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">json_code</span><span class="p">,</span>
+                <span class="s">&#39;message&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">json_message</span><span class="p">,</span>
+                <span class="s">&#39;data&#39;</span><span class="p">:</span> <span class="n">obj</span><span class="o">.</span><span class="n">json_data</span>
+            <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">JSONEncoder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">)</span>
+
+<span class="c"># encoder to handle special types</span>
+</div></div>
+<span class="n">encoder</span> <span class="o">=</span> <span class="n">SBJSONEncoder</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="decode_object"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.decode_object">[docs]</a><span class="k">def</span> <span class="nf">decode_object</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+    <span class="n">data_type</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;data_type&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">data_type</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s">&#39;datetime&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">datetime_from_string</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">data_type</span> <span class="o">==</span> <span class="s">&#39;decimal&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">decimal</span><span class="o">.</span><span class="n">Decimal</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s">&#39;value&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">d</span>
+
+<span class="c"># decoder to handle special types</span>
+</div>
+<span class="n">decoder</span> <span class="o">=</span> <span class="n">JSONDecoder</span><span class="p">(</span><span class="n">object_hook</span><span class="o">=</span><span class="n">decode_object</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="marshall_request"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.marshall_request">[docs]</a><span class="k">def</span> <span class="nf">marshall_request</span><span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;create a jsonrpc request&quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;jsonrpc&#39;</span><span class="p">:</span> <span class="s">&#39;2.0&#39;</span><span class="p">,</span>
+        <span class="s">&#39;method&#39;</span><span class="p">:</span> <span class="n">method_name</span><span class="p">,</span>
+        <span class="s">&#39;params&#39;</span><span class="p">:</span> <span class="n">params</span><span class="p">,</span>
+        <span class="s">&#39;protocol&#39;</span><span class="p">:</span> <span class="n">PROTOCOL_VERSION</span><span class="p">,</span>
+        <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">request_id</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">encoder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="unmarshall_request"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.unmarshall_request">[docs]</a><span class="k">def</span> <span class="nf">unmarshall_request</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;convert json to method, params, and request_id&quot;&quot;&quot;</span>
+    <span class="c"># logger.debug(&#39;unmarshalling request %s&#39; % str(m))</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+    <span class="n">method_name</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;method&#39;</span><span class="p">]</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;params&#39;</span><span class="p">]</span>
+    <span class="n">request_id</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="marshall_response"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.marshall_response">[docs]</a><span class="k">def</span> <span class="nf">marshall_response</span><span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">result</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;create a jsonrpc response&quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;jsonrpc&#39;</span><span class="p">:</span> <span class="s">&#39;2.0&#39;</span><span class="p">,</span>
+        <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="n">request_id</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&#39;error&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">error</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">d</span><span class="p">[</span><span class="s">&#39;result&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">encoder</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;failed to marshall </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+        <span class="k">raise</span>
+
+</div>
+<div class="viewcode-block" id="unmarshall_response"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.unmarshall_response">[docs]</a><span class="k">def</span> <span class="nf">unmarshall_response</span><span class="p">(</span><span class="n">m</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;convert json to method, params, and request_id&quot;&quot;&quot;</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">decoder</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">m</span><span class="p">)</span>
+    <span class="n">request_id</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;result&#39;</span><span class="p">)</span>
+    <span class="n">error</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;error&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">request_id</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="wrap_error"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.wrap_error">[docs]</a><span class="k">def</span> <span class="nf">wrap_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Wrap an SBError in a JSON Error&quot;&quot;&quot;</span>
+    <span class="n">e_index</span> <span class="o">=</span> <span class="n">create_sb_error_index</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">e_index</span> <span class="ow">in</span> <span class="n">sb_error_index</span><span class="p">:</span>
+        <span class="c"># Create a JSONRPCError and assign code and message.</span>
+        <span class="n">new_e</span> <span class="o">=</span> <span class="n">JSONRPCError</span><span class="p">()</span>
+        <span class="n">new_e</span><span class="o">.</span><span class="n">json_code</span> <span class="o">=</span> <span class="n">e_index</span>
+        <span class="n">new_e</span><span class="o">.</span><span class="n">json_message</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span>
+        <span class="k">return</span> <span class="n">new_e</span>
+    <span class="k">return</span> <span class="bp">None</span>
+
+</div>
+<div class="viewcode-block" id="unwrap_error"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.unwrap_error">[docs]</a><span class="k">def</span> <span class="nf">unwrap_error</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">e</span><span class="p">[</span><span class="s">&#39;code&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">sb_error_index</span><span class="p">:</span>
+        <span class="n">ue</span> <span class="o">=</span> <span class="n">sb_error_index</span><span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;code&#39;</span><span class="p">]]</span>
+        <span class="k">raise</span> <span class="n">ue</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;message&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">SBError</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s">&#39;message&#39;</span><span class="p">])</span>
+
+
+<span class="c"># JSON-RPC HTTP Services</span>
+<span class="c"># ----------------------------------------------------------------------------</span>
+
+</div>
+<div class="viewcode-block" id="RPCDispatcher"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCDispatcher">[docs]</a><span class="k">class</span> <span class="nc">RPCDispatcher</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">funcs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_instance</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RPCDispatcher.register_instance"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCDispatcher.register_instance">[docs]</a>    <span class="k">def</span> <span class="nf">register_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">instance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;register published methods for instance</span>
+
+<span class="sd">        methods with &quot;published&quot; attribute will be registered.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">member_name</span><span class="p">,</span> <span class="n">member</span><span class="p">)</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmembers</span><span class="p">(</span><span class="n">instance</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">inspect</span><span class="o">.</span><span class="n">ismethod</span><span class="p">(</span><span class="n">member</span><span class="p">)</span> <span class="ow">and</span> \
+                    <span class="nb">getattr</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="s">&#39;published&#39;</span><span class="p">,</span> <span class="bp">False</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">register_function</span><span class="p">(</span><span class="n">member</span><span class="p">,</span> <span class="n">member_name</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCDispatcher.register_function"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCDispatcher.register_function">[docs]</a>    <span class="k">def</span> <span class="nf">register_function</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">function</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">function</span><span class="o">.</span><span class="n">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">funcs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">function</span>
+</div>
+    <span class="k">def</span> <span class="nf">_dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;dispatch request and return results or an error&quot;&quot;&quot;</span>
+        <span class="n">func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">funcs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">func</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">MethodNotFound</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">funcs</span><span class="p">[</span><span class="n">method</span><span class="p">](</span><span class="o">*</span><span class="n">params</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RPCDispatcher.marshalled_dispatch"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCDispatcher.marshalled_dispatch">[docs]</a>    <span class="k">def</span> <span class="nf">marshalled_dispatch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">client_cert_info</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span> <span class="o">=</span> <span class="n">unmarshall_request</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="c"># generate response</span>
+            <span class="k">if</span> <span class="n">client_cert_info</span><span class="p">:</span>
+                <span class="n">params</span> <span class="o">=</span> <span class="p">[</span><span class="n">client_cert_info</span><span class="p">,</span> <span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+            <span class="c"># response should be a legit response or an RPCError</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dispatch</span><span class="p">(</span><span class="n">method_name</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">marshall_response</span><span class="p">(</span>
+                <span class="n">request_id</span><span class="o">=</span><span class="n">request_id</span><span class="p">,</span> <span class="n">result</span><span class="o">=</span><span class="n">response</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">JSONRPCError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">marshall_response</span><span class="p">(</span><span class="n">request_id</span><span class="o">=</span><span class="n">request_id</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">errors</span><span class="o">.</span><span class="n">SBError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">json_error</span> <span class="o">=</span> <span class="n">wrap_error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">marshall_response</span><span class="p">(</span><span class="n">request_id</span><span class="o">=</span><span class="n">request_id</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">json_error</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c"># using exc_info in testing causes a delay</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">marshall_response</span><span class="p">(</span>
+                <span class="n">request_id</span><span class="o">=</span><span class="n">request_id</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">InternalError</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="c"># logger.error(str(Exception))</span>
+            <span class="c"># The default implementation calls sys.exc_info, but calling</span>
+            <span class="c"># sys.exc_info causes a delay in the response. I don&#39;t know why -</span>
+            <span class="c"># maybe something related to threading or M2Crypto or both.</span>
+            <span class="c"># May be related to nose.  It occures when capturing logging, but</span>
+            <span class="c"># not with --nologcapture</span>
+
+</div></div>
+<div class="viewcode-block" id="RPCRequestHandler"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCRequestHandler">[docs]</a><span class="k">class</span> <span class="nc">RPCRequestHandler</span><span class="p">(</span><span class="n">BaseHTTPRequestHandler</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JSON-RPC Request Handler.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">server_version</span> <span class="o">=</span> <span class="s">&quot;ScatterBytes Server&quot;</span>
+
+    <span class="c"># No need to use compression - let SSL handle it.</span>
+
+<div class="viewcode-block" id="RPCRequestHandler.read_incoming_data"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCRequestHandler.read_incoming_data">[docs]</a>    <span class="k">def</span> <span class="nf">read_incoming_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># logger.debug(&#39;reading data&#39;)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;/JSON-RPC&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report_404</span><span class="p">()</span>
+            <span class="k">return</span>
+        <span class="c"># RPC should never need to be more than 1MB</span>
+        <span class="n">max_size</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span>
+        <span class="n">content_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s">&quot;content-length&quot;</span><span class="p">])</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;content length: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">content_length</span><span class="p">)</span>
+        <span class="c"># even if content length &gt; max_size, need to read data from socket</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;reading up to </span><span class="si">%s</span><span class="s"> bytes&#39;</span> <span class="o">%</span> <span class="n">max_size</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rfile</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">content_length</span><span class="p">,</span> <span class="n">max_size</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">!=</span> <span class="n">content_length</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;data length does not match&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">report_400</span><span class="p">()</span>
+            <span class="k">return</span>
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="RPCRequestHandler.do_POST"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCRequestHandler.do_POST">[docs]</a>    <span class="k">def</span> <span class="nf">do_POST</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Interpret and dispatch JSON-RPC</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;handling POST&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">dispatcher</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s">&#39;no dispatcher defined&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_incoming_data</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="c"># try to dispatch</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;dispatching&#39;</span><span class="p">)</span>
+            <span class="n">cert_info</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">,</span> <span class="s">&#39;client_cert_info&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">dispatcher</span><span class="o">.</span><span class="n">marshalled_dispatch</span><span class="p">(</span>
+                <span class="n">data</span><span class="p">,</span> <span class="n">client_cert_info</span><span class="o">=</span><span class="n">cert_info</span>
+            <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got response&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c"># bug in program</span>
+            <span class="c"># log it</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="c"># send 500</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_response</span><span class="p">(</span><span class="mi">500</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_header</span><span class="p">(</span><span class="s">&quot;Content-length&quot;</span><span class="p">,</span> <span class="s">&quot;0&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">end_headers</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_response</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_header</span><span class="p">(</span><span class="s">&quot;Content-type&quot;</span><span class="p">,</span> <span class="s">&quot;text/plain&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">send_header</span><span class="p">(</span><span class="s">&quot;Content-length&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">end_headers</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCRequestHandler.log_message"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCRequestHandler.log_message">[docs]</a>    <span class="k">def</span> <span class="nf">log_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">format</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client_address</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s"> - - [</span><span class="si">%s</span><span class="s">] </span><span class="si">%s</span><span class="se">\n</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">address</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_date_time_string</span><span class="p">(),</span> <span class="n">format</span> <span class="o">%</span> <span class="n">args</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">19</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="RPCRequestHandler.report_404"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCRequestHandler.report_404">[docs]</a>    <span class="k">def</span> <span class="nf">report_404</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;sending 404&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_response</span><span class="p">(</span><span class="mi">404</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="s">&quot;No such page&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_header</span><span class="p">(</span><span class="s">&quot;Content-Type&quot;</span><span class="p">,</span> <span class="s">&quot;text/plain&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">send_header</span><span class="p">(</span><span class="s">&quot;Content-Length&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">response</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">end_headers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+
+
+<span class="c"># JSON-RPC Proxy</span>
+<span class="c"># Much of this is taken from xmlrpclib.</span>
+
+</div></div>
+<span class="k">class</span> <span class="nc">_Method</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">send</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__send</span> <span class="o">=</span> <span class="n">send</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_Method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">.</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__send</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__name</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="RPCServerProxy"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCServerProxy">[docs]</a><span class="k">class</span> <span class="nc">RPCServerProxy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">ssl_context</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">source_address</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">scheme</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">scheme</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">hostname</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">port</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">port</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">scheme</span> <span class="o">==</span> <span class="s">&#39;https&#39;</span><span class="p">:</span>
+                <span class="n">port</span> <span class="o">=</span> <span class="mi">443</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">port</span> <span class="o">=</span> <span class="mi">80</span>
+        <span class="n">url_path</span> <span class="o">=</span> <span class="n">o</span><span class="o">.</span><span class="n">path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">url_path</span><span class="p">:</span>
+            <span class="n">url_path</span> <span class="o">=</span> <span class="s">&#39;/JSON-RPC&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_url_path</span> <span class="o">=</span> <span class="n">url_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span> <span class="o">=</span> <span class="n">scheme</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_source_address</span> <span class="o">=</span> <span class="n">source_address</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ssl_context</span> <span class="o">=</span> <span class="n">ssl_context</span>
+
+    <span class="k">def</span> <span class="nf">_make_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">https</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_url</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;latin1&#39;</span><span class="p">),</span> <span class="n">ssl_context</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_ssl_context</span><span class="p">,</span>
+            <span class="n">source_address</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_source_address</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c"># magic method dispatcher</span>
+        <span class="k">return</span> <span class="n">_Method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_request</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">parameters</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;requesting </span><span class="si">%s</span><span class="s"> from control node&#39;</span> <span class="o">%</span> <span class="n">method_name</span><span class="p">)</span>
+        <span class="n">request_id</span> <span class="o">=</span> <span class="n">gen_request_id</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">marshall_request</span><span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">method_name</span><span class="p">,</span> <span class="n">parameters</span><span class="p">)</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;sending POST </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+                <span class="n">method</span><span class="o">=</span><span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_url_path</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">data</span>
+            <span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">getresponse</span><span class="p">()</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;HTTP status not 200. &#39;</span>
+                <span class="n">emsg</span> <span class="o">=</span> <span class="n">emsg</span> <span class="o">+</span> <span class="s">&#39;Response: </span><span class="si">%s</span><span class="s">, Data: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">data</span>
+                <span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">errors</span><span class="o">.</span><span class="n">HTTPError</span><span class="p">(</span><span class="n">emsg</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">200</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span>
+            <span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">error</span><span class="p">,</span> <span class="n">request_id_ret</span><span class="p">)</span> <span class="o">=</span> <span class="n">unmarshall_response</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;result: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;error: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">error</span><span class="p">:</span>
+                <span class="c"># try to identify the error</span>
+                <span class="n">unwrap_error</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">result</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got error: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">raise</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">con</span>
+
+</div>
+<div class="viewcode-block" id="RPCServer"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.RPCServer">[docs]</a><span class="k">class</span> <span class="nc">RPCServer</span><span class="p">(</span><span class="n">https</span><span class="o">.</span><span class="n">HTTPServer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JSON-RPC Server.</span>
+
+<span class="sd">    single-threaded JSON-RPC server</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">dispatcher</span><span class="p">,</span>
+                 <span class="n">request_handler</span><span class="o">=</span><span class="n">RPCRequestHandler</span><span class="p">,</span> <span class="n">log_requests</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logRequests</span> <span class="o">=</span> <span class="n">log_requests</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatcher</span> <span class="o">=</span> <span class="n">dispatcher</span>
+        <span class="n">https</span><span class="o">.</span><span class="n">HTTPServer</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">request_handler</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="SSLRPCServer"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.SSLRPCServer">[docs]</a><span class="k">class</span> <span class="nc">SSLRPCServer</span><span class="p">(</span><span class="n">https</span><span class="o">.</span><span class="n">HTTPSServer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JSON-RPC Server.</span>
+
+<span class="sd">    single-threaded SSL JSON-RPC server</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">dispatcher</span><span class="p">,</span> <span class="n">ssl_context</span><span class="p">,</span>
+                 <span class="n">request_handler</span><span class="o">=</span><span class="n">RPCRequestHandler</span><span class="p">,</span> <span class="n">log_requests</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logRequests</span> <span class="o">=</span> <span class="n">log_requests</span>
+        <span class="n">https</span><span class="o">.</span><span class="n">HTTPSServer</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">request_handler</span><span class="p">,</span> <span class="n">ssl_context</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatcher</span> <span class="o">=</span> <span class="n">dispatcher</span>
+
+</div>
+<div class="viewcode-block" id="ThreadedRPCServer"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ThreadedRPCServer">[docs]</a><span class="k">class</span> <span class="nc">ThreadedRPCServer</span><span class="p">(</span><span class="n">https</span><span class="o">.</span><span class="n">ThreadedHTTPServer</span><span class="p">,</span> <span class="n">FamilyThreadMixIn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JSON-RPC Server.</span>
+
+<span class="sd">    multi-threaded JSON-RPC server</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">dispatcher</span><span class="p">,</span>
+                 <span class="n">request_handler</span><span class="o">=</span><span class="n">RPCRequestHandler</span><span class="p">,</span> <span class="n">log_requests</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_parent</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logRequests</span> <span class="o">=</span> <span class="n">log_requests</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatcher</span> <span class="o">=</span> <span class="n">dispatcher</span>
+        <span class="n">https</span><span class="o">.</span><span class="n">ThreadedHTTPServer</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">request_handler</span>
+        <span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="ThreadedSSLRPCServer"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ThreadedSSLRPCServer">[docs]</a><span class="k">class</span> <span class="nc">ThreadedSSLRPCServer</span><span class="p">(</span><span class="n">https</span><span class="o">.</span><span class="n">ThreadedHTTPSServer</span><span class="p">,</span> <span class="n">FamilyThreadMixIn</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;JSON-RPC Server.</span>
+
+<span class="sd">    multi-threaded SSL JSON-RPC server</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">dispatcher</span><span class="p">,</span> <span class="n">ssl_context</span><span class="p">,</span>
+                 <span class="n">request_handler</span><span class="o">=</span><span class="n">RPCRequestHandler</span><span class="p">,</span> <span class="n">log_requests</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_parent</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logRequests</span> <span class="o">=</span> <span class="n">log_requests</span>
+        <span class="n">https</span><span class="o">.</span><span class="n">ThreadedHTTPSServer</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="p">(</span><span class="n">ip_address</span><span class="p">,</span> <span class="n">port</span><span class="p">),</span> <span class="n">request_handler</span><span class="p">,</span> <span class="n">ssl_context</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dispatcher</span> <span class="o">=</span> <span class="n">dispatcher</span>
+
+</div>
+<div class="viewcode-block" id="ControlNodeProxy"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ControlNodeProxy">[docs]</a><span class="k">class</span> <span class="nc">ControlNodeProxy</span><span class="p">(</span><span class="n">RPCServerProxy</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Proxy to the control node.</span>
+
+<span class="sd">    configuration based on the client&#39;s settings</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">source_address</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;control_node_address&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;control_node_port&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;https://</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Created a control node proxy to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">make_ssl_context</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="n">RPCServerProxy</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">source_address</span><span class="o">=</span><span class="n">source_address</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ControlNodeProxy.reload_ssl_context"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ControlNodeProxy.reload_ssl_context">[docs]</a>    <span class="k">def</span> <span class="nf">reload_ssl_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ssl_context</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">make_ssl_context</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ControlNodeProxy.make_get_request"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ControlNodeProxy.make_get_request">[docs]</a>    <span class="k">def</span> <span class="nf">make_get_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Make a GET request using the exisiting SSL session.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">o</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;request: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">()</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="n">o</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">getresponse</span><span class="p">()</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">data</span>
+</div>
+<div class="viewcode-block" id="ControlNodeProxy.get_certificates"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.ControlNodeProxy.get_certificates">[docs]</a>    <span class="k">def</span> <span class="nf">get_certificates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">address</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;control_node_address&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;control_node_port&#39;</span><span class="p">,</span> <span class="n">section</span><span class="o">=</span><span class="s">&#39;network&#39;</span><span class="p">)</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="s">&quot;https://</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">/updates/scatterbytes_certs.zip&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+        <span class="n">zipf_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">make_get_request</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">),</span> <span class="s">&#39;scatterbytes_certs.zip&#39;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">zipf_data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output_path</span>
+
+</div></div>
+<div class="viewcode-block" id="StorageNodeProxy"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.StorageNodeProxy">[docs]</a><span class="k">class</span> <span class="nc">StorageNodeProxy</span><span class="p">(</span><span class="n">RPCServerProxy</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">ssl_context</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">source_address</span><span class="o">=</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+        <span class="n">RPCServerProxy</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">ssl_context</span><span class="p">,</span> <span class="n">source_address</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StorageNodeProxy.store_chunk"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.StorageNodeProxy.store_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">store_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sig</span><span class="p">,</span> <span class="n">sig_ts</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">,</span>
+                    <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_data</span><span class="p">):</span>
+
+        <span class="n">url_path</span> <span class="o">=</span> <span class="s">&#39;/sbfile/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_name</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;storing chunk at </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url_path</span><span class="p">)</span>
+        <span class="c"># figure out the content length</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">chunk_data</span><span class="p">,</span> <span class="nb">file</span><span class="p">):</span>
+            <span class="n">content_length</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">fstat</span><span class="p">(</span><span class="n">chunk_data</span><span class="o">.</span><span class="n">fileno</span><span class="p">())</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">content_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk_data</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-sig&#39;</span><span class="p">,</span> <span class="n">sig</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-sig-ts&#39;</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">datetime_to_string</span><span class="p">(</span><span class="n">sig_ts</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-transfer-name&#39;</span><span class="p">,</span> <span class="n">transfer_name</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-expire-time&#39;</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">datetime_to_string</span><span class="p">(</span><span class="n">expire_time</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s">&#39;application/octet-stream&#39;</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">&#39;Content-Length&#39;</span><span class="p">,</span> <span class="n">content_length</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="c"># make connection</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+                <span class="n">method</span><span class="o">=</span><span class="s">&#39;PUT&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url_path</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">chunk_data</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span>
+            <span class="p">)</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">getresponse</span><span class="p">(</span><span class="n">buffering</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">con</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">del</span> <span class="n">con</span>
+        <span class="k">assert</span> <span class="n">r</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="mi">201</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;chunk stored, response is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">response</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">response</span>
+</div>
+<div class="viewcode-block" id="StorageNodeProxy.retrieve_chunk"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.StorageNodeProxy.retrieve_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">retrieve_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">auth</span><span class="p">,</span> <span class="n">auth_ts</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span>
+                       <span class="n">byte_start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">byte_end</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">url_path</span> <span class="o">=</span> <span class="s">&#39;/sbfile/</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_name</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;request to </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">url_path</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-auth&#39;</span><span class="p">,</span> <span class="n">auth</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-action&#39;</span><span class="p">,</span> <span class="s">&#39;RETRIEVE_CHUNK&#39;</span><span class="p">),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-auth-ts&#39;</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">datetime_to_string</span><span class="p">(</span><span class="n">auth_ts</span><span class="p">)),</span>
+            <span class="p">(</span><span class="s">&#39;x-sb-expire-time&#39;</span><span class="p">,</span> <span class="n">util</span><span class="o">.</span><span class="n">datetime_to_string</span><span class="p">(</span><span class="n">expire_time</span><span class="p">)),</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">byte_end</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c"># HTTP Spec uses inclusive ranges.</span>
+            <span class="n">headers</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s">&#39;bytes&#39;</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)))</span>
+        <span class="n">con</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_connection</span><span class="p">()</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="n">url_path</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">con</span><span class="o">.</span><span class="n">getresponse</span><span class="p">(</span><span class="n">buffering</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">con</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">del</span> <span class="n">con</span>
+        <span class="k">return</span> <span class="n">response</span>
+
+</div></div>
+<div class="viewcode-block" id="gen_storage_node_proxy_creator"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.jsonrpc.gen_storage_node_proxy_creator">[docs]</a><span class="k">def</span> <span class="nf">gen_storage_node_proxy_creator</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">create_storage_node_proxy</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+        <span class="n">ssl_context</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">make_ssl_context</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">StorageNodeProxy</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">ssl_context</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">create_storage_node_proxy</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

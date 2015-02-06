@@ -1,0 +1,212 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.validation &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.validation</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.validation</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">from</span> <span class="nn">formencode</span> <span class="kn">import</span> <span class="n">Invalid</span>
+<span class="kn">from</span> <span class="nn">formencode</span> <span class="kn">import</span> <span class="n">validators</span>
+
+<span class="c"># Thanks to Gavin Andresen&#39;s DJango BitCoin address validator, which this is</span>
+<span class="c"># baed on.</span>
+
+
+<div class="viewcode-block" id="BTCAddressField"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.BTCAddressField">[docs]</a><span class="k">class</span> <span class="nc">BTCAddressField</span><span class="p">(</span><span class="n">validators</span><span class="o">.</span><span class="n">FancyValidator</span><span class="p">):</span>
+
+    <span class="n">messages</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;invalid&#39;</span><span class="p">:</span> <span class="s">&#39;Invalid Bitcoin address.&#39;</span><span class="p">}</span>
+
+<div class="viewcode-block" id="BTCAddressField.validate_python"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.BTCAddressField.validate_python">[docs]</a>    <span class="k">def</span> <span class="nf">validate_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="s">r&quot;[a-zA-Z1-9]{27,35}$&quot;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Invalid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s">&#39;invalid&#39;</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="n">version</span> <span class="o">=</span> <span class="n">get_bcaddress_version</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Invalid</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s">&#39;invalid&#39;</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+</div></div>
+<span class="n">__b58chars</span> <span class="o">=</span> <span class="s">&#39;123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz&#39;</span>
+<span class="n">__b58base</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">__b58chars</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="b58encode"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.b58encode">[docs]</a><span class="k">def</span> <span class="nf">b58encode</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; encode v, which is a string of bytes, to base58.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">long_value</span> <span class="o">=</span> <span class="il">0L</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">v</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="n">long_value</span> <span class="o">+=</span> <span class="p">(</span><span class="mi">256</span> <span class="o">**</span> <span class="n">i</span><span class="p">)</span> <span class="o">*</span> <span class="nb">ord</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="k">while</span> <span class="n">long_value</span> <span class="o">&gt;=</span> <span class="n">__b58base</span><span class="p">:</span>
+        <span class="p">(</span><span class="n">div</span><span class="p">,</span> <span class="n">mod</span><span class="p">)</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">long_value</span><span class="p">,</span> <span class="n">__b58base</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">__b58chars</span><span class="p">[</span><span class="n">mod</span><span class="p">]</span> <span class="o">+</span> <span class="n">result</span>
+        <span class="n">long_value</span> <span class="o">=</span> <span class="n">div</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">__b58chars</span><span class="p">[</span><span class="n">long_value</span><span class="p">]</span> <span class="o">+</span> <span class="n">result</span>
+
+    <span class="c"># Bitcoin does a little leading-zero-compression:</span>
+    <span class="c"># leading 0-bytes in the input become leading-1s</span>
+    <span class="n">nPad</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="s">&#39;</span><span class="se">\0</span><span class="s">&#39;</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">nPad</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">__b58chars</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">nPad</span><span class="p">)</span> <span class="o">+</span> <span class="n">result</span>
+
+</div>
+<div class="viewcode-block" id="b58decode"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.b58decode">[docs]</a><span class="k">def</span> <span class="nf">b58decode</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">length</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; decode v into a string of len bytes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">long_value</span> <span class="o">=</span> <span class="il">0L</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">v</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]):</span>
+        <span class="n">long_value</span> <span class="o">+=</span> <span class="n">__b58chars</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">__b58base</span> <span class="o">**</span> <span class="n">i</span><span class="p">)</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+    <span class="k">while</span> <span class="n">long_value</span> <span class="o">&gt;=</span> <span class="mi">256</span><span class="p">:</span>
+        <span class="p">(</span><span class="n">div</span><span class="p">,</span> <span class="n">mod</span><span class="p">)</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">long_value</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="n">mod</span><span class="p">)</span> <span class="o">+</span> <span class="n">result</span>
+        <span class="n">long_value</span> <span class="o">=</span> <span class="n">div</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="n">long_value</span><span class="p">)</span> <span class="o">+</span> <span class="n">result</span>
+
+    <span class="n">nPad</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">c</span> <span class="o">!=</span> <span class="n">__b58chars</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="k">break</span>
+        <span class="n">nPad</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">result</span> <span class="o">=</span> <span class="nb">chr</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">nPad</span> <span class="o">+</span> <span class="n">result</span>
+    <span class="k">if</span> <span class="n">length</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="o">!=</span> <span class="n">length</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="k">return</span> <span class="n">result</span>
+
+</div>
+<div class="viewcode-block" id="get_bcaddress_version"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.get_bcaddress_version">[docs]</a><span class="k">def</span> <span class="nf">get_bcaddress_version</span><span class="p">(</span><span class="n">strAddress</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">    Returns None if strAddress is invalid.  Otherwise returns integer version</span>
+<span class="sd">    of address.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">addr</span> <span class="o">=</span> <span class="n">b58decode</span><span class="p">(</span><span class="n">strAddress</span><span class="p">,</span> <span class="mi">25</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">addr</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">None</span>
+    <span class="n">version</span> <span class="o">=</span> <span class="n">addr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">checksum</span> <span class="o">=</span> <span class="n">addr</span><span class="p">[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span>
+    <span class="n">vh160</span> <span class="o">=</span> <span class="n">addr</span><span class="p">[:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span>  <span class="c"># Version plus hash160 is what is checksummed</span>
+    <span class="n">h3</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">vh160</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">())</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">h3</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span> <span class="o">==</span> <span class="n">checksum</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">ord</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">None</span>
+
+</div>
+<div class="viewcode-block" id="BTCPaymentThreshold"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.BTCPaymentThreshold">[docs]</a><span class="k">class</span> <span class="nc">BTCPaymentThreshold</span><span class="p">(</span><span class="n">validators</span><span class="o">.</span><span class="n">Int</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;validate satoshi threshold for which payments are made to a storage node</span>
+
+<span class="sd">    It is expressed in satoshi (10^-8 BTC) as an integer.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nb">min</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">5</span>
+    <span class="nb">max</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">9</span>
+
+</div>
+<div class="viewcode-block" id="SecurePassword"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.SecurePassword">[docs]</a><span class="k">class</span> <span class="nc">SecurePassword</span><span class="p">(</span><span class="n">validators</span><span class="o">.</span><span class="n">FancyValidator</span><span class="p">):</span>
+
+    <span class="nb">min</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">non_letter</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">letter_regex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">r&#39;[a-zA-Z]&#39;</span><span class="p">)</span>
+
+    <span class="n">messages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s">&#39;too_few&#39;</span><span class="p">:</span> <span class="s">&#39;Your password must be longer than </span><span class="si">%(min)i</span><span class="s"> &#39;</span>
+        <span class="s">&#39;characters long&#39;</span><span class="p">,</span>
+        <span class="s">&#39;non_letter&#39;</span><span class="p">:</span> <span class="s">&#39;You must include at least </span><span class="si">%(non_letter)i</span><span class="s"> &#39;</span>
+        <span class="s">&#39;non letter in your password&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+<div class="viewcode-block" id="SecurePassword.validate_python"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.SecurePassword.validate_python">[docs]</a>    <span class="k">def</span> <span class="nf">validate_python</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Invalid</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s">&quot;too_few&quot;</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min</span><span class="p">),</span> <span class="n">value</span><span class="p">,</span> <span class="n">state</span>
+            <span class="p">)</span>
+        <span class="n">non_letters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_regex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">non_letters</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">non_letter</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">Invalid</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="s">&quot;non_letter&quot;</span><span class="p">,</span> <span class="n">state</span><span class="p">,</span> <span class="n">non_letter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">non_letter</span><span class="p">),</span>
+                <span class="n">value</span><span class="p">,</span> <span class="n">state</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="SecurePassword.generate_random_value"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.validation.SecurePassword.generate_random_value">[docs]</a>    <span class="k">def</span> <span class="nf">generate_random_value</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">attempts</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">attempts</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b32encode</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+                <span class="n">password</span> <span class="o">=</span> <span class="n">SecurePassword</span><span class="o">.</span><span class="n">to_python</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">except</span> <span class="n">Invalid</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="k">return</span> <span class="n">password</span>
+
+</div></div>
+<span class="n">Email</span> <span class="o">=</span> <span class="n">validators</span><span class="o">.</span><span class="n">Email</span>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

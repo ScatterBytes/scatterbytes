@@ -1,0 +1,204 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.chunk &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.chunk</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.chunk</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">struct</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">.crypt</span> <span class="kn">import</span> <span class="n">calc_file_hash</span>
+<span class="kn">from</span> <span class="nn">.crypt</span> <span class="kn">import</span> <span class="n">calc_file_crc32</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">ChecksumError</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">SecureHashError</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">ChunkNotFoundError</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">ChunkChecksumError</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">CHUNK_SIZE_MIN</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="mi">6</span>
+<span class="n">CHUNK_SIZE_MAX</span> <span class="o">=</span> <span class="n">CHUNK_SIZE_MIN</span> <span class="o">*</span> <span class="mi">2</span>
+
+
+<div class="viewcode-block" id="read_crc32_checksum"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.read_crc32_checksum">[docs]</a><span class="k">def</span> <span class="nf">read_crc32_checksum</span><span class="p">(</span><span class="n">f</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read the crc32 checksum appended to the data.</span>
+
+<span class="sd">    Returns the crc32 checksum as an integer.</span>
+
+<span class="sd">    :param f: file object or path</span>
+<span class="sd">    :rtype: int</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">is_file</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="nb">file</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_file</span><span class="p">:</span>
+        <span class="n">fl</span> <span class="o">=</span> <span class="n">f</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fl</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+    <span class="n">fl</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="o">-</span><span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">checksum</span> <span class="o">=</span> <span class="n">struct</span><span class="o">.</span><span class="n">unpack</span><span class="p">(</span><span class="s">&#39;&lt;I&#39;</span><span class="p">,</span> <span class="n">fl</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_file</span><span class="p">:</span>
+        <span class="n">fl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">checksum</span>
+
+</div>
+<div class="viewcode-block" id="checksum_chunk"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.checksum_chunk">[docs]</a><span class="k">def</span> <span class="nf">checksum_chunk</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;checksum file using the stored crc32 value</span>
+
+<span class="sd">    Last 4 bytes is a crc32 checksum.</span>
+
+<span class="sd">    :param str file_path: path to file to be checked</span>
+<span class="sd">    :raises ChunkChecksumError: if checksum fails</span>
+<span class="sd">    :rtype: None</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">cksum</span> <span class="o">=</span> <span class="n">read_crc32_checksum</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="n">cksum_calc</span> <span class="o">=</span> <span class="n">calc_file_crc32</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">contains_checksum</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cksum</span> <span class="o">!=</span> <span class="n">cksum_calc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ChunkChecksumError</span><span class="p">(</span><span class="s">&#39;checksum failed&#39;</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Chunk"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk">[docs]</a><span class="k">class</span> <span class="nc">Chunk</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;chunk of a file</span>
+
+<span class="sd">    Data always has crc32 checksum appended.</span>
+
+<span class="sd">    file_path</span>
+<span class="sd">        full filesystem path to the chunk</span>
+
+<span class="sd">    file_name</span>
+<span class="sd">        local name for the chunk</span>
+
+<span class="sd">    size</span>
+<span class="sd">        size of the chunk on the filesystem</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ChunkNotFoundError</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_path</span> <span class="o">=</span> <span class="n">file_path</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Chunk.file_name"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.file_name">[docs]</a>    <span class="k">def</span> <span class="nf">file_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Chunk.verify_checksum"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.verify_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">verify_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;perform a crc32 checksum&quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;verifying crc32 checksum&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">checksum_chunk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ChecksumError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ChunkChecksumError</span><span class="p">(</span><span class="o">*</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Chunk.verify_hash"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.verify_hash">[docs]</a>    <span class="k">def</span> <span class="nf">verify_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">hash</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checking hash for </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;expected </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">hash</span><span class="p">)</span>
+        <span class="n">hash_calc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calc_hash</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got      </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">hash_calc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hash_calc</span> <span class="o">!=</span> <span class="nb">hash</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SecureHashError</span>
+</div>
+<div class="viewcode-block" id="Chunk.calc_hash"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.calc_hash">[docs]</a>    <span class="k">def</span> <span class="nf">calc_hash</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="s">&#39;base64&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;calculate the hash for the chunk</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># if salt length is supplied, the salt should be read from the chunk</span>
+        <span class="k">if</span> <span class="n">salt</span><span class="p">:</span>
+            <span class="c"># salt should be 4 bytes</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">salt</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span>
+        <span class="nb">hash</span> <span class="o">=</span> <span class="n">calc_file_hash</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="n">salt</span><span class="p">,</span> <span class="n">return_type</span><span class="o">=</span><span class="n">return_type</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;hash for </span><span class="si">%s</span><span class="s"> is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span> <span class="nb">hash</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">hash</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Chunk.crc32_checksum"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.crc32_checksum">[docs]</a>    <span class="k">def</span> <span class="nf">crc32_checksum</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># returns crc32 as integer</span>
+        <span class="k">return</span> <span class="n">read_crc32_checksum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Chunk.size"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.size">[docs]</a>    <span class="k">def</span> <span class="nf">size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;size including checksum if present&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span><span class="p">)</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="Chunk.chunk_size"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.chunk_size">[docs]</a>    <span class="k">def</span> <span class="nf">chunk_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;&quot;size of the chunk, which must be at least CHUNK_SIZE_MIN&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">CHUNK_SIZE_MIN</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Chunk.read"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.chunk.Chunk.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">byte_range</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;read data excluding the checksum&quot;&quot;&quot;</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">raw</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">total_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span>
+                <span class="n">bytes_to_read</span> <span class="o">=</span> <span class="n">total_bytes</span>
+                <span class="k">if</span> <span class="n">byte_range</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">byte_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">byte_range</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s">&#39;invalid byte range&#39;</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="n">byte_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">byte_range</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">byte_range</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="c"># skip the checksum</span>
+                <span class="k">return</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">bytes_to_read</span> <span class="o">-</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

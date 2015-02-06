@@ -1,0 +1,769 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.client.downloader &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.client.downloader</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.client.downloader</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">Queue</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">from</span> <span class="nn">.chunk</span> <span class="kn">import</span> <span class="n">ClientChunk</span><span class="p">,</span> <span class="n">combine_chunks</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">..</span> <span class="kn">import</span> <span class="n">crypt</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">util</span> <span class="k">as</span> <span class="n">client_util</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">ChunkTransferLog</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">DownloadError</span>
+<span class="kn">from</span> <span class="nn">..errors</span> <span class="kn">import</span> <span class="n">TransferLogError</span>
+<span class="kn">from</span> <span class="nn">..compat</span> <span class="kn">import</span> <span class="n">OrderedDict</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">JOB_ID_LOCK</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+<span class="n">JOB_ID_COUNTER</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">count</span><span class="p">()</span>
+
+<div class="viewcode-block" id="gen_job_id"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.gen_job_id">[docs]</a><span class="k">def</span> <span class="nf">gen_job_id</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">JOB_ID_LOCK</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">JOB_ID_COUNTER</span><span class="o">.</span><span class="n">next</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="get_chunk_path"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.get_chunk_path">[docs]</a><span class="k">def</span> <span class="nf">get_chunk_path</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">chunk_sequence</span><span class="p">):</span>
+    <span class="n">file_name</span> <span class="o">=</span> <span class="s">&#39;chunk_</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">chunk_sequence</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">9</span><span class="p">)</span>
+    <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">file_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">chunk_path</span>
+
+</div>
+<div class="viewcode-block" id="DownloadLog"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadLog">[docs]</a><span class="k">class</span> <span class="nc">DownloadLog</span><span class="p">(</span><span class="n">ChunkTransferLog</span><span class="p">):</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;downloads.log&#39;</span>
+    <span class="n">dt_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+        <span class="s">r&#39;^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$&#39;</span>
+    <span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_dt</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">dt</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">dt</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">T%H:%M:%S&#39;</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_to_dt</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">dt_str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">(</span>
+            <span class="o">*</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">dt_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">dt_str</span><span class="p">)</span><span class="o">.</span><span class="n">groups</span><span class="p">())</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="DownloadLog.append_download_info"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadLog.append_download_info">[docs]</a>    <span class="k">def</span> <span class="nf">append_download_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_info</span><span class="p">,</span> <span class="n">download_info</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">]))</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_size&#39;</span><span class="p">]))</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">download_info</span><span class="p">[</span><span class="s">&#39;uri&#39;</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_from_dt</span><span class="p">(</span><span class="n">download_info</span><span class="p">[</span><span class="s">&#39;expire_time&#39;</span><span class="p">]))</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">download_info</span><span class="p">[</span><span class="s">&#39;signature&#39;</span><span class="p">])</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_from_dt</span><span class="p">(</span><span class="n">download_info</span><span class="p">[</span><span class="s">&#39;signature_ts&#39;</span><span class="p">]))</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;assigned </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="s">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="DownloadLog.append_complete"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadLog.append_complete">[docs]</a>    <span class="k">def</span> <span class="nf">append_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_sequence</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s">&#39;completed </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_sequence</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="DownloadLog.read"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadLog.read">[docs]</a>    <span class="k">def</span> <span class="nf">read</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">download_dir_path</span><span class="p">):</span>
+        <span class="n">return_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;chunks_complete&#39;</span> <span class="p">:</span> <span class="p">[],</span>
+            <span class="s">&#39;chunk_info&#39;</span> <span class="p">:</span> <span class="p">{}</span>
+        <span class="p">}</span>
+        <span class="c"># first line should contain chunk info</span>
+        <span class="n">log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">download_dir_path</span><span class="p">,</span> <span class="n">cls</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">log_path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">log_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lines</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="n">chunk_info</span> <span class="o">=</span> <span class="n">return_data</span><span class="p">[</span><span class="s">&#39;chunk_info&#39;</span><span class="p">]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;completed&#39;</span><span class="p">):</span>
+                    <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="n">return_data</span><span class="p">[</span><span class="s">&#39;chunks_complete&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">chunk_sequence</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="p">(</span><span class="n">chunk_sequence</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">chunk_hash</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">,</span>
+                <span class="n">uri</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span>
+                <span class="n">signature</span><span class="p">,</span> <span class="n">signature_ts</span><span class="p">)</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">9</span><span class="p">:]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;,&#39;</span><span class="p">)</span>
+                <span class="n">expire_time</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_to_dt</span><span class="p">(</span><span class="n">expire_time</span><span class="p">)</span>
+                <span class="n">signature_ts</span> <span class="o">=</span> <span class="n">cls</span><span class="o">.</span><span class="n">_to_dt</span><span class="p">(</span><span class="n">signature_ts</span><span class="p">)</span>
+                <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunk_sequence</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">chunk_sequence</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">chunk_info</span><span class="p">:</span>
+                    <span class="n">chunk_info</span><span class="p">[</span><span class="n">chunk_sequence</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s">&#39;chunk_sequence&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunk_sequence</span><span class="p">),</span>
+                        <span class="s">&#39;chunk_name&#39;</span> <span class="p">:</span> <span class="n">chunk_name</span><span class="p">,</span>
+                        <span class="s">&#39;chunk_hash&#39;</span> <span class="p">:</span> <span class="n">chunk_hash</span><span class="p">,</span>
+                        <span class="s">&#39;chunk_size&#39;</span> <span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">),</span>
+                        <span class="s">&#39;download_info&#39;</span> <span class="p">:</span> <span class="p">[]</span>
+                    <span class="p">}</span>
+                <span class="n">download_info</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s">&#39;uri&#39;</span> <span class="p">:</span> <span class="n">uri</span><span class="p">,</span>
+                    <span class="s">&#39;expire_time&#39;</span> <span class="p">:</span> <span class="n">expire_time</span><span class="p">,</span>
+                    <span class="s">&#39;signature&#39;</span> <span class="p">:</span> <span class="n">signature</span><span class="p">,</span>
+                    <span class="s">&#39;signature_ts&#39;</span> <span class="p">:</span> <span class="n">signature_ts</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="c"># if it&#39;s expired, forget it</span>
+                <span class="n">now</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">get_utc_datetime</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">expire_time</span> <span class="o">&lt;</span> <span class="n">now</span> <span class="o">+</span> <span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">minutes</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">chunk_info</span><span class="p">[</span><span class="n">chunk_sequence</span><span class="p">][</span><span class="s">&#39;download_info&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">download_info</span>
+                    <span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">TransferLogError</span><span class="p">(</span><span class="s">&#39;unable to read download log&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">return_data</span>
+
+</div></div>
+<div class="viewcode-block" id="DownloadWorkerThread"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadWorkerThread">[docs]</a><span class="k">class</span> <span class="nc">DownloadWorkerThread</span><span class="p">(</span><span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sn_proxy_creator</span><span class="p">,</span> <span class="n">chunk_job_queue</span><span class="p">,</span>
+                 <span class="n">chunk_job_complete_queue</span><span class="p">,</span> <span class="n">chunk_job_failed_queue</span><span class="p">):</span>
+        <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">daemon</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sn_proxy_creator</span> <span class="o">=</span> <span class="n">sn_proxy_creator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span> <span class="o">=</span> <span class="n">chunk_job_queue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_complete_queue</span> <span class="o">=</span> <span class="n">chunk_job_complete_queue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_failed_queue</span> <span class="o">=</span> <span class="n">chunk_job_failed_queue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">working_event</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DownloadWorkerThread.run"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadWorkerThread.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="o">.</span><span class="mi">1</span><span class="p">):</span>
+            <span class="c"># responsiveness vs business tradeoff</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got job </span><span class="si">%s</span><span class="s"> from queue&#39;</span> <span class="o">%</span> <span class="n">job</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;job queue is empty&#39;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">working_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got download job to process&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">download_chunk_part</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_failed_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;job </span><span class="si">%s</span><span class="s"> failed&#39;</span> <span class="o">%</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">working_event</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="DownloadWorkerThread.working"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadWorkerThread.working">[docs]</a>    <span class="k">def</span> <span class="nf">working</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># TODO</span>
+        <span class="c"># Is an event needed here or is it safe to just use an attribute?</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">working_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DownloadWorkerThread.shutdown"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadWorkerThread.shutdown">[docs]</a>    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="DownloadWorkerThread.download_chunk_part"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.DownloadWorkerThread.download_chunk_part">[docs]</a>    <span class="k">def</span> <span class="nf">download_chunk_part</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+        <span class="n">chunk_name</span> <span class="o">=</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">]</span>
+        <span class="n">request</span> <span class="o">=</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;request&#39;</span><span class="p">]</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s">&#39;signature&#39;</span><span class="p">]</span>
+        <span class="n">sig_ts</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s">&#39;signature_ts&#39;</span><span class="p">]</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s">&#39;uri&#39;</span><span class="p">]</span>
+        <span class="n">expire_time</span> <span class="o">=</span> <span class="n">request</span><span class="p">[</span><span class="s">&#39;expire_time&#39;</span><span class="p">]</span>
+        <span class="p">(</span><span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">)</span> <span class="o">=</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">]</span>
+        <span class="n">sn_proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sn_proxy_creator</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;requesting </span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s">-</span><span class="si">%s</span><span class="s">, </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">chunk_name</span><span class="p">,</span> <span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">,</span> <span class="n">byte_end</span> <span class="o">-</span> <span class="n">byte_start</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">chunk_f</span> <span class="o">=</span> <span class="n">sn_proxy</span><span class="o">.</span><span class="n">retrieve_chunk</span><span class="p">(</span>
+            <span class="n">sig</span><span class="p">,</span> <span class="n">sig_ts</span><span class="p">,</span> <span class="n">expire_time</span><span class="p">,</span> <span class="n">chunk_name</span><span class="p">,</span> <span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span>
+        <span class="p">)</span>
+        <span class="c"># go ahead and read the data so if there are problems, they will</span>
+        <span class="c"># occur here.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;chunk_segment_path&#39;</span><span class="p">],</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">chunk_f</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">expected_size</span> <span class="o">=</span> <span class="n">byte_end</span> <span class="o">-</span> <span class="n">byte_start</span>
+        <span class="n">received_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;chunk_segment_path&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">st_size</span>
+        <span class="k">if</span> <span class="n">expected_size</span> <span class="o">!=</span> <span class="n">received_size</span><span class="p">:</span>
+            <span class="n">emsg</span> <span class="o">=</span> <span class="s">&quot;expected size: </span><span class="si">%s</span><span class="s">, actual size: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">expected_size</span><span class="p">,</span> <span class="n">received_size</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="n">DownloadError</span><span class="p">(</span><span class="n">emsg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_complete_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+
+</div></div>
+<div class="viewcode-block" id="SplitChunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk">[docs]</a><span class="k">class</span> <span class="nc">SplitChunk</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Chunk split into segments for downloading.</span>
+
+<span class="sd">    keeps state of downloaded parts for a chunk</span>
+
+<span class="sd">    complete</span>
+<span class="sd">        all segments downloaded and chunk is complete</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c"># arbitrary min size</span>
+    <span class="n">min_segment_size</span> <span class="o">=</span>  <span class="mi">100000</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_dir</span><span class="p">,</span> <span class="n">chunk_info</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        chunk_dir</span>
+<span class="sd">            dir to the downloaded chunk to</span>
+
+<span class="sd">        chunk_info</span>
+<span class="sd">            information about the chunk given by the control node</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_dir</span> <span class="o">=</span> <span class="n">chunk_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_name</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_sequence</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_path</span> <span class="o">=</span> <span class="n">get_chunk_path</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_sequence</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_size&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span> <span class="o">=</span> <span class="n">chunk_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">segments</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SplitChunk.split_limit"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.split_limit">[docs]</a>    <span class="k">def</span> <span class="nf">split_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;maximum segments a chunk should be split into&quot;&quot;&quot;</span>
+        <span class="n">min_size</span> <span class="o">=</span> <span class="mi">128</span> <span class="o">*</span> <span class="mf">1000.0</span>
+        <span class="n">split_limit</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_segment_size</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="c"># in case floor == 0</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">split_limit</span><span class="p">)</span>
+</div>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_split</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="n">split_limit</span><span class="p">,</span> <span class="n">segment_count</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;define segments for chunk&quot;&quot;&quot;</span>
+        <span class="n">segments</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">segment_count</span> <span class="o">&gt;</span> <span class="n">split_limit</span><span class="p">:</span>
+            <span class="n">segment_count</span> <span class="o">=</span> <span class="n">split_limit</span>
+        <span class="k">assert</span> <span class="n">split_limit</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">assert</span> <span class="n">segment_count</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">segment_size</span> <span class="o">=</span> <span class="n">chunk_size</span> <span class="o">/</span> <span class="n">segment_count</span>
+        <span class="c"># any leftover bytes get tacked on</span>
+        <span class="k">if</span> <span class="n">chunk_size</span> <span class="o">%</span> <span class="n">segment_count</span><span class="p">:</span>
+            <span class="n">segment_size</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">byte_start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">byte_start</span> <span class="o">&lt;</span> <span class="n">chunk_size</span><span class="p">:</span>
+            <span class="n">byte_end</span> <span class="o">=</span> <span class="n">byte_start</span> <span class="o">+</span> <span class="n">segment_size</span>
+            <span class="c"># if the chunk doesn&#39;t divide evenly, last segment will be smaller</span>
+            <span class="k">if</span> <span class="n">byte_end</span> <span class="o">&gt;</span> <span class="n">chunk_size</span><span class="p">:</span>
+                <span class="n">byte_end</span> <span class="o">=</span> <span class="n">chunk_size</span>
+            <span class="n">segments</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">byte_start</span><span class="p">,</span> <span class="n">byte_end</span><span class="p">))</span>
+            <span class="n">byte_start</span> <span class="o">=</span> <span class="n">byte_end</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">size</span> <span class="o">==</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="p">(</span><span class="n">size</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">segments</span>
+
+<div class="viewcode-block" id="SplitChunk.split"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.split">[docs]</a>    <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">segment_count</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;split chunk into even byte ranges&quot;&quot;&quot;</span>
+        <span class="n">chunk_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span>
+        <span class="n">split_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_limit</span>
+        <span class="n">segments</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_split</span><span class="p">(</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">split_limit</span><span class="p">,</span> <span class="n">segment_count</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">segments</span> <span class="o">=</span> <span class="n">segments</span>
+</div>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_create_jobs</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">chunk_dir</span><span class="p">,</span> <span class="n">segments</span><span class="p">,</span> <span class="n">chunk_info</span><span class="p">):</span>
+        <span class="n">segments</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">requests</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">segments</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">requests</span><span class="p">)</span>
+        <span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">]</span>
+        <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">get_chunk_path</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">chunk_sequence</span><span class="p">)</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">segment</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">segments</span><span class="p">):</span>
+            <span class="n">request</span> <span class="o">=</span> <span class="n">requests</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">chunk_segment_path</span> <span class="o">=</span> <span class="n">chunk_path</span> <span class="o">+</span> <span class="s">&#39;-segment-</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s">&#39;id&#39;</span> <span class="p">:</span> <span class="n">gen_job_id</span><span class="p">(),</span>
+                <span class="s">&#39;request&#39;</span> <span class="p">:</span> <span class="n">request</span><span class="p">,</span>
+                <span class="s">&#39;chunk_name&#39;</span> <span class="p">:</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">],</span>
+                <span class="s">&#39;chunk_segment_path&#39;</span> <span class="p">:</span> <span class="n">chunk_segment_path</span><span class="p">,</span>
+                <span class="s">&#39;byte_range&#39;</span> <span class="p">:</span> <span class="n">segment</span><span class="p">,</span>
+                <span class="s">&#39;complete&#39;</span> <span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s">&#39;failed&#39;</span> <span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s">&#39;attempts&#39;</span> <span class="p">:</span> <span class="p">[]</span>
+            <span class="p">}</span>
+            <span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jobs</span>
+
+<div class="viewcode-block" id="SplitChunk.create_jobs"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.create_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">create_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">requests</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]</span>
+        <span class="n">snode_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">requests</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;creating jobs for chunk </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_sequence</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">snode_count</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;segment_count is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="p">))</span>
+        <span class="n">jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_jobs</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;storage node count is </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">snode_count</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
+            <span class="n">job</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;created </span><span class="si">%s</span><span class="s"> jobs&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">jobs</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">jobs</span><span class="p">)</span>
+        <span class="c"># check segments</span>
+        <span class="n">segments_size</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">j</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">j</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> \
+                                                        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span> <span class="o">==</span> <span class="n">segments_size</span><span class="p">,</span> \
+                                            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_size</span><span class="p">,</span> <span class="n">segments_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jobs</span>
+</div>
+<div class="viewcode-block" id="SplitChunk.complete_job"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.complete_job">[docs]</a>    <span class="k">def</span> <span class="nf">complete_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span>
+        <span class="n">job</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="c"># if we have all segments, build the chunk</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">complete_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs_complete</span>
+        <span class="n">complete_jobs</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span> <span class="o">==</span> <span class="p">[</span><span class="n">j</span><span class="p">[</span><span class="s">&#39;byte_range&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">complete_jobs</span><span class="p">]:</span>
+            <span class="c"># all done - assemble</span>
+            <span class="c"># sort by byte range</span>
+            <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">get_chunk_path</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_sequence</span><span class="p">)</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">,</span> <span class="s">&#39;ab&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;assembling </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_path</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">complete_jobs</span><span class="p">:</span>
+                <span class="n">segment_path</span> <span class="o">=</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;chunk_segment_path&#39;</span><span class="p">]</span>
+                <span class="n">segment_size</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">stat</span><span class="p">(</span><span class="n">segment_path</span><span class="p">)</span><span class="o">.</span><span class="n">st_size</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;</span><span class="si">%s</span><span class="s"> - </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">segment_path</span><span class="p">,</span> <span class="n">segment_size</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">segment_path</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="n">chunk</span> <span class="o">=</span> <span class="n">ClientChunk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_path</span><span class="p">)</span>
+            <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+            <span class="n">chunk</span><span class="o">.</span><span class="n">verify_hash</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;client_chunk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SplitChunk.jobs_complete"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.jobs_complete">[docs]</a>    <span class="k">def</span> <span class="nf">jobs_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="k">if</span> <span class="n">j</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]]</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="SplitChunk.jobs_incomplete"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.SplitChunk.jobs_incomplete">[docs]</a>    <span class="k">def</span> <span class="nf">jobs_incomplete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">j</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">j</span><span class="p">[</span><span class="s">&#39;failed&#39;</span><span class="p">]]</span>
+
+</div></div>
+<div class="viewcode-block" id="ThreadedDownloader"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader">[docs]</a><span class="k">class</span> <span class="nc">ThreadedDownloader</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;downloads all chunks and recombines them</span>
+
+<span class="sd">    file_info</span>
+<span class="sd">        information about the file from the control node</span>
+
+<span class="sd">    thread_count</span>
+<span class="sd">        number of download threads to spawn</span>
+
+<span class="sd">    output_path</span>
+<span class="sd">        path to save the downloaded file</span>
+
+<span class="sd">    download_dir</span>
+<span class="sd">        directory where all downloaded files are stored. The downloaded file</span>
+<span class="sd">        will be stored under a subdirectory using the volume name and a hash</span>
+<span class="sd">        of the file name.</span>
+
+<span class="sd">    chunk_download_dir</span>
+<span class="sd">        dirctory where chunks for this specific download are stored -</span>
+<span class="sd">        hash of the volume name and file name</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">sleep_period</span> <span class="o">=</span> <span class="mf">0.1</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_info</span><span class="p">,</span> <span class="n">control_node_proxy</span><span class="p">,</span>
+                 <span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="n">thread_count</span><span class="p">,</span> <span class="n">encrypt_passphrase</span><span class="p">,</span>
+                 <span class="n">output_path</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span> <span class="o">=</span> <span class="n">file_info</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span> <span class="o">=</span> <span class="n">control_node_proxy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">snode_proxy_creator</span> <span class="o">=</span> <span class="n">snode_proxy_creator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">thread_count</span> <span class="o">=</span> <span class="n">thread_count</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encrypt_passphrase</span> <span class="o">=</span> <span class="n">encrypt_passphrase</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_path</span> <span class="o">=</span> <span class="n">output_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_dir</span> <span class="o">=</span> <span class="n">download_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_chunk_download_dir</span><span class="p">(</span>
+            <span class="n">download_dir</span><span class="p">,</span> <span class="n">file_info</span><span class="p">[</span><span class="s">&#39;volume_name&#39;</span><span class="p">],</span> <span class="n">file_info</span><span class="p">[</span><span class="s">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">):</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_log</span> <span class="o">=</span> <span class="n">DownloadLog</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">)</span>
+        <span class="c"># How the chunks are downloaded depends on how many threads we are</span>
+        <span class="c"># using and how many chunks the file has.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunks_per_request_max</span> <span class="o">=</span> <span class="mi">25</span>
+        <span class="c"># minimum queue size for making new chunk requests</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue_min_size</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="c"># indicates that all jobs have completed successfully</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">jobs_complete</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="c"># need enough download nodes to keep all of the threads busy</span>
+        <span class="n">chunk_count</span> <span class="o">=</span> <span class="n">file_info</span><span class="p">[</span><span class="s">&#39;chunk_count&#39;</span><span class="p">]</span>
+        <span class="n">mirror_count</span> <span class="o">=</span> <span class="n">file_info</span><span class="p">[</span><span class="s">&#39;mirror_count&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes_per_chunk</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span>
+            <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">thread_count</span> <span class="o">/</span> <span class="n">chunk_count</span><span class="p">),</span> <span class="n">mirror_count</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="p">))</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;nodes per chunk: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes_per_chunk</span><span class="p">)</span>
+        <span class="c"># the downloaded chunks</span>
+        <span class="c"># primary data structure for chunk information</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">chunk_count</span><span class="p">):</span>
+            <span class="n">chunks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s">&#39;chunk_name&#39;</span> <span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="s">&#39;chunk_hash&#39;</span> <span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="s">&#39;chunk_size&#39;</span> <span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="s">&#39;chunk_sequence&#39;</span> <span class="p">:</span> <span class="n">i</span><span class="p">,</span>
+                <span class="s">&#39;split_chunk&#39;</span> <span class="p">:</span> <span class="bp">None</span><span class="p">,</span>
+                <span class="s">&#39;complete&#39;</span> <span class="p">:</span> <span class="bp">False</span><span class="p">,</span>
+                <span class="s">&#39;requests&#39;</span> <span class="p">:</span> <span class="p">[],</span>
+            <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span> <span class="o">=</span> <span class="n">chunks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">worker_threads</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">failed_jobs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_complete_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_failed_queue</span> <span class="o">=</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ThreadedDownloader.complete"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.complete">[docs]</a>    <span class="k">def</span> <span class="nf">complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c">##split_chunks = [c[&#39;split_chunk&#39;] for c in self.chunks.values()]</span>
+        <span class="c">##print split_chunks</span>
+        <span class="c">##for split_chunk in split_chunks:</span>
+        <span class="c">##    if split_chunk:</span>
+        <span class="c">##        print split_chunk.chunk_sequence, split_chunk.complete</span>
+        <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]:</span>
+                <span class="k">return</span> <span class="bp">False</span>
+        <span class="k">return</span> <span class="bp">True</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.shutdown_workers"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.shutdown_workers">[docs]</a>    <span class="k">def</span> <span class="nf">shutdown_workers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">worker_thread</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_threads</span><span class="p">:</span>
+            <span class="n">worker_thread</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.process_queues"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.process_queues">[docs]</a>    <span class="k">def</span> <span class="nf">process_queues</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># completions</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_complete_queue</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+                <span class="n">split_chunk</span> <span class="o">=</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span>
+                <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="n">split_chunk</span><span class="o">.</span><span class="n">chunk_sequence</span>
+                <span class="n">chunk_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">chunk_sequence</span><span class="p">]</span>
+                <span class="n">job</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">job</span><span class="p">[</span><span class="s">&#39;attempts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+                <span class="n">split_chunk</span><span class="o">.</span><span class="n">complete_job</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">download_log</span><span class="o">.</span><span class="n">append_complete</span><span class="p">(</span>
+                        <span class="n">split_chunk</span><span class="o">.</span><span class="n">chunk_sequence</span>
+                    <span class="p">)</span>
+            <span class="k">except</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="c"># failures</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_failed_queue</span>
+        <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+                <span class="n">job</span><span class="p">[</span><span class="s">&#39;failed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">job</span><span class="p">[</span><span class="s">&#39;attempts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">failed_jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">Queue</span><span class="o">.</span><span class="n">Empty</span><span class="p">:</span>
+                <span class="k">break</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.handle_failed_jobs"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.handle_failed_jobs">[docs]</a>    <span class="k">def</span> <span class="nf">handle_failed_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">clone_job</span><span class="p">(</span><span class="n">old_job</span><span class="p">):</span>
+            <span class="n">new_job</span> <span class="o">=</span> <span class="n">old_job</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">new_job</span><span class="p">[</span><span class="s">&#39;failed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="n">new_job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gen_job_id</span><span class="p">()</span>
+            <span class="n">old_job</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_job</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">new_job</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">failed_jobs</span><span class="p">:</span>
+            <span class="n">job</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">failed_jobs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">job</span><span class="p">[</span><span class="s">&#39;attempts&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c"># try again</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;reattempting job </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">clone_job</span><span class="p">(</span><span class="n">job</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># create a new job using a different storage node</span>
+                <span class="n">new_job</span> <span class="o">=</span> <span class="bp">None</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;scheduling to download from another snode&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">other_job</span> <span class="ow">in</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">jobs</span><span class="p">[:]:</span>
+                    <span class="k">if</span> <span class="n">other_job</span><span class="p">[</span><span class="s">&#39;failed&#39;</span><span class="p">]:</span>
+                        <span class="k">continue</span>
+                    <span class="k">if</span> <span class="n">other_job</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">job</span><span class="p">[</span><span class="s">&#39;attempts&#39;</span><span class="p">]:</span>
+                        <span class="n">new_job</span> <span class="o">=</span> <span class="n">clone_job</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+                        <span class="n">new_job</span><span class="p">[</span><span class="s">&#39;request&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">other_job</span><span class="p">[</span><span class="s">&#39;request&#39;</span><span class="p">]</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">new_job</span><span class="p">)</span>
+                        <span class="k">break</span>
+                <span class="k">if</span> <span class="n">new_job</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">DownloadError</span><span class="p">(</span>
+                        <span class="s">&#39;all attempts to download chunk failed&#39;</span><span class="p">)</span>
+                <span class="c"># FIXME - handle reporting failures</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.update_chunk"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.update_chunk">[docs]</a>    <span class="k">def</span> <span class="nf">update_chunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_info</span><span class="p">):</span>
+        <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">]</span>
+        <span class="n">chunk_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">chunk_sequence</span><span class="p">]</span>
+        <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">]</span>
+        <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_size&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_size&#39;</span><span class="p">]</span>
+        <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">chunk_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span>
+            <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SplitChunk</span><span class="p">(</span><span class="n">chunk_dir</span><span class="p">,</span> <span class="n">chunk_record</span><span class="p">)</span>
+        <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;download_info&#39;</span><span class="p">])</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="ThreadedDownloader.requests_complete"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.requests_complete">[docs]</a>    <span class="k">def</span> <span class="nf">requests_complete</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;do not make any more requests&quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]:</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="n">response</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.request_chunks"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.request_chunks">[docs]</a>    <span class="k">def</span> <span class="nf">request_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests_complete</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">chunks_per_request_max</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks_per_request_max</span>
+        <span class="n">nodes_per_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes_per_chunk</span>
+        <span class="n">chunk_job_queue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span>
+        <span class="n">chunk_job_queue_min_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue_min_size</span>
+        <span class="c"># if the buffer is populated, don&#39;t request more</span>
+        <span class="n">job_buffer_size</span> <span class="o">=</span> <span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">qsize</span><span class="p">()</span>
+        <span class="n">jobs_max</span> <span class="o">=</span> <span class="n">chunks_per_request_max</span> <span class="o">*</span> <span class="n">nodes_per_chunk</span>
+        <span class="k">if</span> <span class="n">job_buffer_size</span> <span class="o">&gt;</span> <span class="n">chunk_job_queue_min_size</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="c"># figure out offset and limit</span>
+        <span class="n">chunk_limit</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+            <span class="mi">1</span><span class="p">,</span>
+            <span class="nb">int</span><span class="p">((</span><span class="n">jobs_max</span> <span class="o">-</span> <span class="n">job_buffer_size</span><span class="p">)</span> <span class="o">/</span> <span class="n">nodes_per_chunk</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">chunk_limit</span><span class="p">:</span>
+            <span class="n">chunk_limit</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">)</span>
+        <span class="n">chunk_offset</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">)):</span>
+            <span class="n">sequence</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">chunk_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">chunk_data</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">chunk_data</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]):</span>
+                <span class="n">chunk_offset</span> <span class="o">=</span> <span class="n">sequence</span>
+                <span class="k">break</span>
+        <span class="c"># see if smaller limit is needed</span>
+        <span class="k">for</span> <span class="n">sequence</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">chunk_offset</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">)):</span>
+            <span class="n">chunk_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">sequence</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">chunk_data</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]:</span>
+                <span class="c"># break here regardless - should&#39;t re-equest chunks</span>
+                <span class="k">if</span> <span class="n">sequence</span> <span class="o">-</span> <span class="n">chunk_offset</span> <span class="o">&lt;</span> <span class="n">chunk_limit</span><span class="p">:</span>
+                    <span class="n">chunk_limit</span> <span class="o">=</span> <span class="n">sequence</span> <span class="o">-</span> <span class="n">chunk_offset</span>
+                <span class="k">break</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;offset: </span><span class="si">%s</span><span class="s">, limit: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">chunk_offset</span><span class="p">,</span> <span class="n">chunk_limit</span><span class="p">))</span>
+        <span class="n">volume_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;volume_name&#39;</span><span class="p">]</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">request_chunks</span><span class="p">(</span>
+            <span class="n">volume_name</span><span class="p">,</span> <span class="n">file_name</span><span class="p">,</span> <span class="n">chunk_offset</span><span class="p">,</span> <span class="n">chunk_limit</span><span class="p">,</span> <span class="n">nodes_per_chunk</span>
+        <span class="p">)</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="n">chunk_offset</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got response - queueing jobs&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">chunk_record</span> <span class="ow">in</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;chunk_info&#39;</span><span class="p">]:</span>
+            <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sequence</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">update_chunk</span><span class="p">(</span><span class="n">chunk_record</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log_control_node_response</span><span class="p">(</span><span class="n">chunk_record</span><span class="p">)</span>
+            <span class="c"># create jobs for this chunk</span>
+            <span class="n">split_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">sequence</span><span class="p">][</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">split_chunk</span><span class="o">.</span><span class="n">create_jobs</span><span class="p">():</span>
+                <span class="c"># assign the job id</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;queued job </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">job</span><span class="p">)</span>
+            <span class="n">sequence</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;all jobs are queued&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.log_control_node_response"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.log_control_node_response">[docs]</a>    <span class="k">def</span> <span class="nf">log_control_node_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_record</span><span class="p">):</span>
+        <span class="n">chunk_info</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s">&#39;chunk_sequence&#39;</span> <span class="p">:</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_sequence&#39;</span><span class="p">],</span>
+            <span class="s">&#39;chunk_name&#39;</span> <span class="p">:</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_name&#39;</span><span class="p">],</span>
+            <span class="s">&#39;chunk_hash&#39;</span> <span class="p">:</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">],</span>
+            <span class="s">&#39;chunk_size&#39;</span> <span class="p">:</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;chunk_size&#39;</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">download_info</span> <span class="ow">in</span> <span class="n">chunk_record</span><span class="p">[</span><span class="s">&#39;download_info&#39;</span><span class="p">]:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">download_log</span><span class="o">.</span><span class="n">append_download_info</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">,</span> <span class="n">download_info</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.clean_chunk_download_dir"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.clean_chunk_download_dir">[docs]</a>    <span class="k">def</span> <span class="nf">clean_chunk_download_dir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;delete all partial downloads&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s">&#39;log&#39;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="s">&#39;segment&#39;</span> <span class="ow">in</span> <span class="n">name</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;chunk&#39;</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.process_log"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.process_log">[docs]</a>    <span class="k">def</span> <span class="nf">process_log</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">log_data</span> <span class="o">=</span> <span class="n">DownloadLog</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">log_data</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;attempting to resume download&#39;</span><span class="p">)</span>
+            <span class="n">chunks_complete</span> <span class="o">=</span> <span class="n">log_data</span><span class="p">[</span><span class="s">&#39;chunks_complete&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">chunk_sequence</span><span class="p">,</span> <span class="n">chunk_info</span><span class="p">)</span> <span class="ow">in</span> <span class="n">log_data</span><span class="p">[</span><span class="s">&#39;chunk_info&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">update_chunk</span><span class="p">(</span><span class="n">chunk_info</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">chunk_sequence</span> <span class="ow">in</span> <span class="n">chunks_complete</span><span class="p">:</span>
+                <span class="n">chunk_dset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">chunk_sequence</span><span class="p">]</span>
+                <span class="n">chunk_dset</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">True</span>
+                <span class="n">split_chunk</span> <span class="o">=</span> <span class="n">chunk_dset</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span>
+                <span class="n">chunk_path</span> <span class="o">=</span> <span class="n">split_chunk</span><span class="o">.</span><span class="n">chunk_path</span>
+                <span class="n">chunk</span> <span class="o">=</span> <span class="n">ClientChunk</span><span class="p">(</span><span class="n">chunk_path</span><span class="p">)</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">verify_checksum</span><span class="p">()</span>
+                <span class="n">chunk</span><span class="o">.</span><span class="n">verify_hash</span><span class="p">(</span><span class="n">chunk_dset</span><span class="p">[</span><span class="s">&#39;chunk_hash&#39;</span><span class="p">])</span>
+                <span class="n">chunk_dset</span><span class="p">[</span><span class="s">&#39;client_chunk&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">chunk</span>
+            <span class="c"># delete any chunks not marked as completed</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;chunk&#39;</span><span class="p">):</span>
+                    <span class="n">chunk_sequence</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">chunk_sequence</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">chunks_complete</span><span class="p">:</span>
+                        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;deleting chunk </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">chunk_sequence</span><span class="p">)</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_download_dir</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+            <span class="c"># for each incomplete split_chunk, create jobs</span>
+            <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;complete&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;requests&#39;</span><span class="p">]:</span>
+                    <span class="k">for</span> <span class="n">job</span> <span class="ow">in</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">create_jobs</span><span class="p">():</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">put</span><span class="p">(</span><span class="n">job</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;resume initiated&#39;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span>
+            <span class="c">##logger.info(&#39;cannot resume download&#39;)</span>
+            <span class="c">##logger.error(str(e), exc_info=True)</span>
+</div>
+    <span class="nd">@classmethod</span>
+<div class="viewcode-block" id="ThreadedDownloader.get_chunk_download_dir"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.get_chunk_download_dir">[docs]</a>    <span class="k">def</span> <span class="nf">get_chunk_download_dir</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">download_dir</span><span class="p">,</span> <span class="n">volume_name</span><span class="p">,</span> <span class="n">file_name</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">volume_name</span><span class="p">:</span>
+            <span class="n">volume_name</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">b32encode</span><span class="p">(</span>
+            <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">volume_name</span> <span class="o">+</span> <span class="n">file_name</span><span class="p">)</span><span class="o">.</span><span class="n">digest</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">download_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">download_dir</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">download_dir</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.download_chunks"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.download_chunks">[docs]</a>    <span class="k">def</span> <span class="nf">download_chunks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c"># create download directory</span>
+        <span class="n">volume_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;volume_name&#39;</span><span class="p">]</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clean_chunk_download_dir</span><span class="p">()</span>
+        <span class="c"># check the log file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">process_log</span><span class="p">()</span>
+        <span class="c"># create thread pool</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">thread_count</span><span class="p">):</span>
+            <span class="n">t</span> <span class="o">=</span> <span class="n">DownloadWorkerThread</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_complete_queue</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_failed_queue</span>
+            <span class="p">)</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">worker_threads</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">while</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="c"># if all of the threads are busy, just wait</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;processing queues&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">process_queues</span><span class="p">()</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;done processing queues&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">complete</span><span class="p">:</span>
+                    <span class="c"># all done</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;all done&#39;</span><span class="p">)</span>
+                    <span class="k">break</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">failed_jobs</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;handling failed jobs&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">handle_failed_jobs</span><span class="p">()</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">requests_complete</span><span class="p">:</span>
+                    <span class="c"># no more work to do - just waiting</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;requests complete - just waiting&#39;</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sleep_period</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue_min_size</span> <span class="o">&lt;</span> \
+                                                <span class="bp">self</span><span class="o">.</span><span class="n">chunk_job_queue</span><span class="o">.</span><span class="n">qsize</span><span class="p">():</span>
+                    <span class="c"># plenty of jobs in the queue for now</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;plenty of queued jobs - waiting&#39;</span><span class="p">)</span>
+                    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sleep_period</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;requesting chunks&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">request_chunks</span><span class="p">()</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">worker_threads</span><span class="p">:</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+                <span class="n">t</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="ThreadedDownloader.download"><a class="viewcode-back" href="../../../apidoc/scatterbytes.client.html#scatterbytes.client.downloader.ThreadedDownloader.download">[docs]</a>    <span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">volume_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;volume_name&#39;</span><span class="p">]</span>
+        <span class="n">file_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;file_name&#39;</span><span class="p">]</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s">&#39;downloading </span><span class="si">%s</span><span class="s"> from volume </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file_name</span><span class="p">,</span> <span class="n">volume_name</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">download_chunks</span><span class="p">()</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">)):</span>
+            <span class="n">split_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;split_chunk&#39;</span><span class="p">]</span>
+            <span class="n">chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunks</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="s">&#39;client_chunk&#39;</span><span class="p">])</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_path</span>
+        <span class="n">flags</span> <span class="o">=</span> <span class="n">client_util</span><span class="o">.</span><span class="n">read_flags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">file_info</span><span class="p">[</span><span class="s">&#39;flags&#39;</span><span class="p">])</span>
+        <span class="n">encrypt_key</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">encrypt_passphrase</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">encrypt_passphrase</span><span class="p">)</span> <span class="o">==</span> <span class="mi">16</span>
+            <span class="c"># create our key - need the salt, which is first 16 bytes</span>
+            <span class="n">salt</span> <span class="o">=</span> <span class="n">chunks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">byte_range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">])</span>
+            <span class="n">encrypt_key</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">AESKey</span><span class="o">.</span><span class="n">create_pbkdf2</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">encrypt_passphrase</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="n">salt</span>
+            <span class="p">)</span>
+        <span class="n">combine_chunks</span><span class="p">(</span>
+            <span class="n">chunks</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_path</span><span class="p">,</span> <span class="n">flags</span><span class="p">[</span><span class="s">&#39;compressed&#39;</span><span class="p">],</span> <span class="n">encrypt_key</span>
+        <span class="p">)</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Intro &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="index.html" />
+    <link rel="next" title="Installation" href="installation.html" />
+    <link rel="prev" title="Welcome to ScatterBytes’s 0.9.14 Documentation!" href="index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>Intro</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        «&#160;&#160;<a href="index.html">Welcome to ScatterBytes&#8217;s 0.9.14 Documentation!</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="installation.html">Installation</a>&#160;&#160;»
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <div class="section" id="intro">
+<h1>Intro<a class="headerlink" href="#intro" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="network-overview">
+<h2>Network Overview<a class="headerlink" href="#network-overview" title="Permalink to this headline">¶</a></h2>
+<p>ScatterBytes is a network storage system designed to distribute data and copies
+of that data across the internet. Unlike conventional systems which transfer
+and store data in data centers requiring high transfer and storage capacity at
+those centers, ScatterBytes transfers data directly between peers on the
+network, which distributes both the transfer routes and the storage locations.</p>
+</div>
+<div class="section" id="nodes">
+<h2>Nodes<a class="headerlink" href="#nodes" title="Permalink to this headline">¶</a></h2>
+<p>There are three node types on the network: the client node, the storage node,
+and the control node. The client node uploads and downloads data to and from
+the network.  It is the &#8220;consumer&#8221;.  The storage node stores data uploaded from
+the client, sends data downloaded by the client, and replicates data as
+requested by the control node. The control node coordinates activity between
+the client and storage nodes and monitors the network to maintain integrity.</p>
+</div>
+<div class="section" id="redundancy">
+<h2>Redundancy<a class="headerlink" href="#redundancy" title="Permalink to this headline">¶</a></h2>
+<p>Redundancy is configurable by use of pre-defined volumes. A client may create
+any number of volumes, which also function as a namespace for file names. The
+mirror count attribute specifies the number of times the file chunks are to be
+copied to additional storage nodes. One may add no redundancy or as much
+redundancy as the network will support.  For instance, a mirror count of 1
+will maintain 2 copies (original + 1) of each file chunk.</p>
+</div>
+<div class="section" id="data-security">
+<h2>Data Security<a class="headerlink" href="#data-security" title="Permalink to this headline">¶</a></h2>
+<p>By default, the ScatterBytes client encrypts all data using AES 256
+encryption. This means the client is the <em>only</em> one that can read the data
+uploaded.  Neither the storage nodes or the control node can read the stored
+data. In addition, the client may opt to use his own encryption software and
+disable the built in encryption.</p>
+</div>
+<div class="section" id="communication-security">
+<h2>Communication Security<a class="headerlink" href="#communication-security" title="Permalink to this headline">¶</a></h2>
+<p>The ScatterBytes network communication is built on Transport Layer Security
+(TLS) and X.509 certificates. Absolutely all communication is encrypted via
+TLS and all nodes identities verified via X.509 certificates.</p>
+</div>
+<div class="section" id="payments">
+<h2>Payments<a class="headerlink" href="#payments" title="Permalink to this headline">¶</a></h2>
+<p>Rates are stated in gigabyte-months with a month being 30 24 hour days. Actual
+computed rates are based on byte-hours.</p>
+<p>Client nodes pay per gigabyte-month per storage node. For instance, if the
+current storage rate is 2 cents per gigabyte-month (30 day month) and the
+client opts to mirror the data 2 times, the cost would be 6 cents * number of
+gigabyte-months used. Initially, only storage costs apply though download and
+query costs will likely be applied to balance the system.</p>
+<p>Storage nodes are paid to store data.  The current rate is 75% of the rate
+charged to the client. For instance, if a storage node stored 1 terabyte of
+data for 30 days at 0.015 cents per gigabyte-hour, the payment would be
+$15.36. When a download rate is charged, the storage node will be compensated
+as well.</p>
+</div>
+</div>
+
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        «&#160;&#160;<a href="index.html">Welcome to ScatterBytes&#8217;s 0.9.14 Documentation!</a>
+        &#160;&#160;::&#160;&#160;
+        <a class="uplink" href="index.html">Contents</a>
+        &#160;&#160;::&#160;&#160;
+        <a href="installation.html">Installation</a>&#160;&#160;»
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

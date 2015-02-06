@@ -1,0 +1,322 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>scatterbytes.node &mdash; ScatterBytes 0.9.14 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.9.14',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="ScatterBytes 0.9.14 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" /> 
+  </head>
+  <body>
+      <div class="header"><h1 class="heading"><a href="../../index.html">
+          <span>ScatterBytes 0.9.14 documentation</span></a></h1>
+        <h2 class="heading"><span>scatterbytes.node</span></h2>
+      </div>
+      <div class="topnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for scatterbytes.node</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;functionality common to both client and storage nodes</span>
+
+<span class="sd">UserNode</span>
+
+<span class="sd">    base class for StorageNode and ClientNode</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">CertificateError</span>
+<span class="kn">from</span> <span class="nn">.errors</span> <span class="kn">import</span> <span class="n">SBError</span><span class="p">,</span> <span class="n">CertificateRequestError</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">crypt</span>
+
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="UserNode"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode">[docs]</a><span class="k">class</span> <span class="nc">UserNode</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;base class for ClientNode and StorageNode</span>
+
+<span class="sd">    config</span>
+<span class="sd">        configuration instance</span>
+
+<span class="sd">    control_node_proxy</span>
+<span class="sd">        proxy instance for the control node</span>
+
+<span class="sd">    snode_proxy_creator</span>
+<span class="sd">        function to create a storage node proxy</span>
+
+<span class="sd">    cert</span>
+<span class="sd">        TLS Certificate</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">node_O</span> <span class="o">=</span> <span class="s">&#39;ScatterBytes Network&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">snode_proxy_creator</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">config</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config_class</span><span class="o">.</span><span class="n">get_config</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span> <span class="o">=</span> <span class="n">control_node_proxy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">snode_proxy_creator</span> <span class="o">=</span> <span class="n">snode_proxy_creator</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ssl_context_gen_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loaded_certificates</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cert_cache</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span> <span class="nf">_create_private_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">key_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">private_key_path</span>
+        <span class="n">crypt</span><span class="o">.</span><span class="n">create_pkey</span><span class="p">(</span><span class="n">output_path</span><span class="o">=</span><span class="n">key_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="UserNode.get_certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.get_certificate">[docs]</a>    <span class="k">def</span> <span class="nf">get_certificate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">owner_name</span><span class="p">):</span>
+        <span class="n">ssl_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">get_certificate</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="n">owner_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cert_cache</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="UserNode.load_certificates"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.load_certificates">[docs]</a>    <span class="k">def</span> <span class="nf">load_certificates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">retries</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">wait_time</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all server certificates from the control node.</span>
+
+<span class="sd">        This includes:</span>
+<span class="sd">            * software signer certificate</span>
+<span class="sd">            * relay command signer certificate</span>
+<span class="sd">            * root CA&#39;s CRL</span>
+<span class="sd">            * signature for CRL (hack) - M2Crypto can&#39;t verify CRL</span>
+
+<span class="sd">        retries</span>
+<span class="sd">            number of times to retry for failed attempts</span>
+
+<span class="sd">        wait_time</span>
+<span class="sd">            seconds to wait between attempts</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c"># first, make sure if we have a cert, it is not expired.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_certificate_expired</span><span class="p">()</span>
+        <span class="n">ssl_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;ssl_dir&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">download_certificates</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">ssl_dir</span><span class="p">,</span> <span class="n">retries</span><span class="p">,</span> <span class="n">wait_time</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loaded_certificates</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="c"># make sure we have ours</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_certificate</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UserNode.check_certificate_expired"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.check_certificate_expired">[docs]</a>    <span class="k">def</span> <span class="nf">check_certificate_expired</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checking for expired cert&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cert_path</span><span class="p">):</span>
+            <span class="n">cert</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">certificate</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">cert</span><span class="o">.</span><span class="n">check_expire</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">CertificateError</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;certificate expired ... deleting&#39;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cert_path</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">reload_ssl_context</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UserNode.reload_ssl_context"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.reload_ssl_context">[docs]</a>    <span class="k">def</span> <span class="nf">reload_ssl_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;reload ssl context for control node if cert has changed&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="p">,</span> <span class="s">&#39;reload_ssl_context&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">reload_ssl_context</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UserNode.check_certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.check_certificate">[docs]</a>    <span class="k">def</span> <span class="nf">check_certificate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check our certificate and get a new one if needed.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checking our certificate&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_certificate_expired</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cert_path</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">request_new_certificate</span><span class="p">()</span>
+            <span class="c"># need to reload the ssl context on control node proxy</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reload_ssl_context</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UserNode.request_new_certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.request_new_certificate">[docs]</a>    <span class="k">def</span> <span class="nf">request_new_certificate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Obtain an X509 certificate from the control node.</span>
+
+<span class="sd">        If a valid certificate code is set in configuration, as is done during</span>
+<span class="sd">        service initialization, a certificate is obtained from the control</span>
+<span class="sd">        node.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+       <span class="c"># the private key should have already been generated.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">SBError</span><span class="p">(</span><span class="s">&quot;must first generate private key&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;requesting X509 certificate&#39;</span><span class="p">)</span>
+        <span class="c"># generate a CSR</span>
+        <span class="n">pkey</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">load_pkey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">private_key_path</span><span class="p">)</span>
+        <span class="n">csr</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">create_csr</span><span class="p">(</span><span class="n">pkey</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_O</span><span class="p">)</span>
+        <span class="c"># csr is in X509.Request form - must convert to pem in memory</span>
+        <span class="n">csr_pem</span> <span class="o">=</span> <span class="n">csr</span><span class="o">.</span><span class="n">as_pem</span><span class="p">()</span>
+        <span class="c"># segfault was occuring - maybe from loading this twice? - once here</span>
+        <span class="c"># and once at the control node</span>
+        <span class="k">del</span> <span class="n">csr</span>
+        <span class="c"># base64 encoded - will require no special treatment</span>
+        <span class="n">recert_code</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;recert_code&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">recert_code</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SBError</span><span class="p">(</span><span class="s">&#39;recert_code not set in config&#39;</span><span class="p">)</span>
+        <span class="n">proxy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">proxy</span><span class="o">.</span><span class="n">create_certificate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">node_id</span><span class="p">,</span> <span class="n">recert_code</span><span class="p">,</span> <span class="n">csr_pem</span><span class="p">)</span>
+        <span class="c"># cert will be in pem format and ready to save</span>
+        <span class="n">cert_pem</span> <span class="o">=</span> <span class="n">response</span><span class="p">[</span><span class="s">&#39;certificate&#39;</span><span class="p">]</span>
+        <span class="n">cert_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">cert_path</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">cert_path</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cert_pem</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;got certificate&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="UserNode.show_account"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.show_account">[docs]</a>    <span class="k">def</span> <span class="nf">show_account</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">control_node_proxy</span><span class="o">.</span><span class="n">get_account_info</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="UserNode.make_ssl_context"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.make_ssl_context">[docs]</a>    <span class="k">def</span> <span class="nf">make_ssl_context</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">&quot;generate an ssl context for this node&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">ssl_context_gen_lock</span><span class="p">:</span>
+            <span class="n">ctx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">make_ssl_context</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ctx</span>
+</div>
+    <span class="nd">@property</span>
+<div class="viewcode-block" id="UserNode.certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.certificate">[docs]</a>    <span class="k">def</span> <span class="nf">certificate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;certificate belonging to this instance&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">certificate</span>
+</div>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">node_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;node_id&#39;</span><span class="p">)</span>
+
+    <span class="nd">@node_id.setter</span>
+<div class="viewcode-block" id="UserNode.node_id"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.UserNode.node_id">[docs]</a>    <span class="k">def</span> <span class="nf">node_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;node_id&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+</div></div>
+<div class="viewcode-block" id="get_certificate"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.get_certificate">[docs]</a><span class="k">def</span> <span class="nf">get_certificate</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="n">owner_name</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;get a certificate by name&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">cache</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">cert</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">owner_name</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">cert</span><span class="p">:</span>
+        <span class="n">cert_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="n">ssl_dir</span><span class="p">,</span> <span class="s">&quot;</span><span class="si">%s</span><span class="s">_cert.pem&quot;</span> <span class="o">%</span> <span class="n">owner_name</span>
+        <span class="p">)</span>
+        <span class="n">cert</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">load_certificate</span><span class="p">(</span><span class="n">cert_path</span><span class="p">,</span> <span class="n">wrap</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="n">cache</span><span class="p">[</span><span class="n">owner_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">cert</span>
+    <span class="k">return</span> <span class="n">cert</span>
+
+</div>
+<div class="viewcode-block" id="download_certificates"><a class="viewcode-back" href="../../apidoc/scatterbytes.html#scatterbytes.node.download_certificates">[docs]</a><span class="k">def</span> <span class="nf">download_certificates</span><span class="p">(</span>
+    <span class="n">control_node_proxy</span><span class="p">,</span> <span class="n">ssl_dir</span><span class="p">,</span> <span class="n">retries</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">wait_time</span><span class="o">=</span><span class="mi">0</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Get all server certificates from the control node.</span>
+
+<span class="sd">    This includes:</span>
+<span class="sd">        * software signer certificate</span>
+<span class="sd">        * relay command signer certificate</span>
+<span class="sd">        * root CA&#39;s CRL</span>
+<span class="sd">        * signature for CRL (hack) - M2Crypto can&#39;t verify CRL</span>
+
+<span class="sd">    retries</span>
+<span class="sd">        number of times to retry for failed attempts</span>
+
+<span class="sd">    wait_time</span>
+<span class="sd">        seconds to wait between attempts</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;fetching certificates&#39;</span><span class="p">)</span>
+
+    <span class="n">attempts</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">zip_path</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">while</span> <span class="n">attempts</span> <span class="o">&lt;=</span> <span class="n">retries</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;attempt: </span><span class="si">%s</span><span class="s"> of </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">attempts</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">retries</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">zip_path</span> <span class="o">=</span> <span class="n">control_node_proxy</span><span class="o">.</span><span class="n">get_certificates</span><span class="p">()</span>
+            <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s">&#39;cert download failed&#39;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">emsg</span> <span class="o">=</span> <span class="s">&#39;could not load certs - try again in </span><span class="si">%s</span><span class="s"> seconds&#39;</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="n">emsg</span> <span class="o">%</span> <span class="n">wait_time</span><span class="p">)</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">wait_time</span><span class="p">)</span>
+        <span class="n">attempts</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">zip_path</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">CertificateRequestError</span><span class="p">(</span><span class="s">&#39;unable to retrieve certificates&#39;</span><span class="p">)</span>
+
+    <span class="c"># f should be a file path</span>
+    <span class="c"># data is in zip format</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="n">zip_path</span><span class="p">)</span>
+    <span class="n">zf</span> <span class="o">=</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">zip_path</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">zf</span><span class="o">.</span><span class="n">testzip</span><span class="p">()</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;got the zip file and it checks out.&#39;</span><span class="p">)</span>
+    <span class="n">crl_data</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s">&#39;ca_root_crl.pem&#39;</span><span class="p">)</span>
+    <span class="n">crl_data_sig</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s">&#39;ca_root_crl.pem.sig&#39;</span><span class="p">)</span>
+    <span class="c"># save to temporary path</span>
+    <span class="n">crl_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="s">&#39;ca_root_crl.pem&#39;</span><span class="p">)</span>
+    <span class="n">crl_path_tmp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="s">&#39;ca_root_crl.pem.tmp&#39;</span><span class="p">)</span>
+    <span class="nb">open</span><span class="p">(</span><span class="n">crl_path_tmp</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">crl_data</span><span class="p">)</span>
+    <span class="c"># check the crl</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;checking crl&#39;</span><span class="p">)</span>
+    <span class="n">ca_root_cert</span> <span class="o">=</span> <span class="n">get_certificate</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="s">&#39;ca_root&#39;</span><span class="p">)</span>
+    <span class="n">crl</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">CRL</span><span class="p">(</span><span class="n">crl_path_tmp</span><span class="p">)</span>
+    <span class="n">crl</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">crl_data_sig</span><span class="p">,</span> <span class="n">ca_root_cert</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;verified crl.&#39;</span><span class="p">)</span>
+    <span class="c"># looks OK</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">crl_path_tmp</span><span class="p">,</span> <span class="n">crl_path</span><span class="p">)</span>
+    <span class="c"># get and check the certs now</span>
+    <span class="k">for</span> <span class="n">cert_name</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;software_signer_cert.pem&#39;</span><span class="p">,</span>
+                      <span class="s">&#39;relay_command_signer_cert.pem&#39;</span><span class="p">):</span>
+        <span class="n">cert_data</span> <span class="o">=</span> <span class="n">zf</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">cert_name</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="n">cert_name</span><span class="p">)</span>
+        <span class="n">path_tmp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ssl_dir</span><span class="p">,</span> <span class="n">cert_name</span> <span class="o">+</span> <span class="s">&#39;.tmp&#39;</span><span class="p">)</span>
+        <span class="nb">open</span><span class="p">(</span><span class="n">path_tmp</span><span class="p">,</span> <span class="s">&#39;wb&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">cert_data</span><span class="p">)</span>
+        <span class="n">cert</span> <span class="o">=</span> <span class="n">crypt</span><span class="o">.</span><span class="n">Certificate</span><span class="p">(</span><span class="n">path_tmp</span><span class="p">)</span>
+        <span class="n">cert</span><span class="o">.</span><span class="n">verify</span><span class="p">(</span><span class="n">ca_root_cert</span><span class="o">.</span><span class="n">get_pubkey</span><span class="p">())</span>
+        <span class="k">assert</span> <span class="n">cert</span><span class="o">.</span><span class="n">serial_number</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">crl</span><span class="o">.</span><span class="n">serial_numbers</span>
+        <span class="c"># Everything check out.</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">path_tmp</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;saved cert </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">cert_name</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;certificate download and verification complete&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Randall Smith.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
