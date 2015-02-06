@@ -14,15 +14,22 @@ import M2Crypto.EVP
 import M2Crypto.SSL
 import M2Crypto.X509
 from M2Crypto.EVP import pbkdf2
-from .errors import CertificateError, CRLError
+from .errors import CertificateError, CRLError, SignatureError
 from . import util
 from .util import b64encode, b64decode, b32encode
 
 logger = logging.getLogger(__name__)
 
-# Seed the OpenSSL RNG
+# use sha256 for all secure hashing
+HASH_ALGO = 'sha256'
+HASHLIB_SIG_ALGO=hashlib.sha256
+
+# Seed the OpenSSL RNG. Will only be called for new processes.
 M2Crypto.Rand.rand_seed(os.urandom(1024))
 
+def null_callback(x):
+    """callback function that returns None"""
+    pass
 
 def calc_file_crc32(f, contains_checksum=False):
     """calculate the crc32 checksum for a file
@@ -220,6 +227,147 @@ class AESKey:
         return cls(binary_key, salt)
 
 
+class RSAKeyBase:
+    """Base class for Public and Private RSA keys
+
+    """
+
+
+
+class RSAKey:
+    """RSA Key Pair
+
+    Wrapper for M2Crypto.RSA.RSA
+
+    Attributes:
+        filepath: path to the on-disk key
+    """
+
+    def __init__(self, filepath=None, pem_string=None):
+        """
+
+        Use only one of the arguments. Priority is filepath, pem_string.
+
+        Kwargs:
+            filepath (str): path to the key in PEM format
+            pem_string (str): key as string in PEM format
+        """
+
+        assert filepath or pem_string
+        self.filepath = filepath
+        self._pem_string = pem_string
+        if filepath:
+            rsa_key = M2Crypto.RSA.load_key(filepath, callback=null_callback)
+        else:
+            rsa_key = M2Crypto.RSA.load_key_string(pem_string, callback=null_callback)
+        self._set_rsa_key(rsa_key)
+
+    def _set_rsa_key(self, rsa_key):
+        """set the underlying RSA key
+
+        Params:
+            rsa_key (M2Crypto.RSA.RSA): underlying RSA key object
+        """
+        self._rsa_key = rsa_key
+
+    def save(self, filepath=None):
+        """save the key to disk in PEM format.
+
+        Params:
+            filepath (str): path to save to
+        """
+        if filepath is None:
+            filepath = self.filepath
+            assert filepath
+        self._rsa_key.save_key(file=filepath, cipher=None, callback=null_callback)
+
+    def as_pem(self):
+        """convert to PEM string
+
+        Returns:
+            key as PEM string
+        """
+        return self._rsa_key.as_pem(cipher=None, callback=null_callback)
+
+    def as_pem_pub(self):
+        """convert only public key to PEM
+
+        Returns:
+            public key as PEM string
+        """
+        bio = M2Crypto.BIO.MemoryBuffer()
+        self._rsa_key.save_pub_key_bio(bio)
+        return bio.read()
+
+    def sign(self, data):
+        """sign data with the private key.
+
+        Params:
+            data (str): data to sign
+
+        Returns:
+            signature as a str
+        """
+        # hash then sign
+        assert isinstance(data, basestring), 'data should be a string'
+        digest = HASHLIB_SIG_ALGO(data).digest()
+        sig = self._rsa_key.sign(digest, HASH_ALGO)
+        return sig
+
+    def verify(self, data, signature):
+        """verify signature of data
+
+        Params:
+            data (str): data to verify
+            signature (str): signature to check
+
+        Raises:
+            SignatureError
+
+        Returns:
+            True of False
+        """
+
+        digest = HASHLIB_SIG_ALGO(data).digest()
+        try:
+            return self._rsa_key.verify(digest, signature, algo=HASH_ALGO)
+        except M2Crypto.RSA.RSAError:
+            raise SignatureError('signature check failed')
+
+
+    @classmethod
+    def generate_key(cls, bits=1024, exponent=65537):
+        """generate a new RSA key
+
+        Kwargs:
+            bits (int): size of key in bits
+            exponent (int): public key exponent
+
+        Returns:
+            RSAKey
+        """
+        rsa_key = M2Crypto.RSA.gen_key(bits, exponent, callback=null_callback)
+        pem_string = rsa_key.as_pem(cipher=None, callback=null_callback)
+        return cls(pem_string=pem_string)
+
+
+class PublicRSAKey(RSAKey):
+    """Public RSA Key
+
+    """
+
+    def __init__(self, filepath=None, pem_string=None):
+        RSAKey.__init__(self, filepath, pem_string)
+
+    def as_pem(self):
+        return RSAKey.as_pem_pub(self)
+
+# remove methods not applicable to public key
+del PublicRSAKey.generate_key
+del PublicRSAKey.sign
+del PublicRSAKey.as_pem_pub
+
+
 class PKey:
     """public and optional private key in RSA key pair
 
@@ -227,7 +375,7 @@ class PKey:
 
     """
 
-     def __init__(self, filepath=None, pkey=None, pem_string=None):
+    def __init__(self, filepath=None, pkey=None, pem_string=None):
         """
 
         Use only one of the arguments. Priority is filepath, pkey, then key_text.
@@ -559,7 +707,7 @@ def create_pkey(key_size=2048, output_path=None):
 
     """
     pkey = M2Crypto.EVP.PKey()
-    rsa = M2Crypto.RSA.gen_key(key_size, 65537, lambda x: None)
+    rsa = M2Crypto.RSA.gen_key(key_size, 65537, callback=null_callback)
     pkey.assign_rsa(rsa)
     if output_path:
         prepare_ssl_output_dir(output_path)
